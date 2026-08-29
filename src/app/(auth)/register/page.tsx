@@ -3,22 +3,79 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useZkRent } from '@/context/ZkRentContext';
-import { ShieldCheck, User, Building2, ArrowRight, Sparkles } from 'lucide-react';
+import { signIn } from 'next-auth/react';
+import { ShieldCheck, User, Building2, ArrowRight, AlertCircle } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { setActiveRole } = useZkRent();
 
-  const [role, setRole] = useState<'tenant' | 'landlord'>('tenant');
+  const [role, setRole] = useState<'TENANT' | 'LANDLORD'>('TENANT');
   const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setActiveRole(role);
-    router.push(`/onboarding?role=${role}`);
+    setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password,
+          displayName: displayName || undefined,
+          role,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Registration failed');
+        setLoading(false);
+        return;
+      }
+
+      // Auto-login after successful registration
+      const signInResult = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (signInResult?.error) {
+        // Registration succeeded but auto-login failed — redirect to login
+        router.push('/login');
+        return;
+      }
+
+      // Redirect based on role
+      if (role === 'LANDLORD') {
+        router.push('/landlord');
+      } else {
+        router.push('/tenant');
+      }
+    } catch {
+      setError('An unexpected error occurred');
+      setLoading(false);
+    }
   };
 
   return (
@@ -35,6 +92,13 @@ export default function RegisterPage() {
         </p>
       </div>
 
+      {error && (
+        <div className="p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2 text-xs text-red-700 font-mono">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-5 font-mono text-xs">
         {/* Role Picker */}
         <div className="space-y-2">
@@ -42,23 +106,23 @@ export default function RegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={() => setRole('tenant')}
+              onClick={() => setRole('TENANT')}
               className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center gap-1.5 ${
-                role === 'tenant'
+                role === 'TENANT'
                   ? 'bg-[#14213D] text-white border-[#14213D] shadow'
                   : 'bg-white text-[#14213D] border-[#14213D]/15 hover:bg-[#EDECE4]'
               }`}
             >
-              <User className={`w-5 h-5 ${role === 'tenant' ? 'text-[#4FB3A5]' : 'text-[#14213D]'}`} />
+              <User className={`w-5 h-5 ${role === 'TENANT' ? 'text-[#4FB3A5]' : 'text-[#14213D]'}`} />
               <span className="font-bold">Tenant</span>
               <span className="text-[10px] opacity-75">Apply Privately</span>
             </button>
 
             <button
               type="button"
-              onClick={() => setRole('landlord')}
+              onClick={() => setRole('LANDLORD')}
               className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center gap-1.5 ${
-                role === 'landlord'
+                role === 'LANDLORD'
                   ? 'bg-[#AE8B3F] text-white border-[#AE8B3F] shadow'
                   : 'bg-white text-[#14213D] border-[#14213D]/15 hover:bg-[#EDECE4]'
               }`}
@@ -68,6 +132,17 @@ export default function RegisterPage() {
               <span className="text-[10px] opacity-75">List for Free</span>
             </button>
           </div>
+        </div>
+
+        <div>
+          <label className="block text-[#4B5A79] mb-1 font-semibold">Display Name (optional)</label>
+          <input
+            type="text"
+            value={displayName}
+            placeholder="Your name"
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
+          />
         </div>
 
         <div>
@@ -90,6 +165,7 @@ export default function RegisterPage() {
             placeholder="••••••••••••"
             onChange={(e) => setPassword(e.target.value)}
             required
+            minLength={8}
             className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
           />
         </div>
@@ -102,16 +178,18 @@ export default function RegisterPage() {
             placeholder="••••••••••••"
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
+            minLength={8}
             className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
           />
         </div>
 
         <button
           type="submit"
-          className="w-full py-3.5 rounded-lg bg-[#14213D] hover:bg-[#1E2F54] text-white font-bold text-xs font-mono transition-colors shadow flex items-center justify-center gap-2"
+          disabled={loading}
+          className="w-full py-3.5 rounded-lg bg-[#14213D] hover:bg-[#1E2F54] text-white font-bold text-xs font-mono transition-colors shadow flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          <span>Create Account & Onboard</span>
-          <ArrowRight className="w-4 h-4 text-[#AE8B3F]" />
+          <span>{loading ? 'Creating Account...' : 'Create Account'}</span>
+          {!loading && <ArrowRight className="w-4 h-4 text-[#AE8B3F]" />}
         </button>
       </form>
 

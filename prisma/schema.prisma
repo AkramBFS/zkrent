@@ -11,3 +11,93 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum UserRole {
+  TENANT
+  LANDLORD
+}
+
+model User {
+  id             String   @id @default(uuid()) @db.Uuid
+  role           UserRole
+
+  email          String   @unique
+  displayName    String?
+
+  passwordHash   String?
+
+  authProvider   String?
+  authProviderId String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  properties     Property[]
+  applications   Application[]
+  payments       Payment[]
+
+  @@unique([authProvider, authProviderId])
+  @@map("users")
+}
+
+model Property {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  address     String
+  city        String
+  state       String
+  zip         String
+  price       Int
+  beds        Int
+  baths       Float
+  sqft        Int
+  type        String
+  description String
+  status      String   @default("active")
+
+  landlordId  String   @db.Uuid
+  landlord    User     @relation(fields: [landlordId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  applications Application[]
+
+  @@map("properties")
+}
+
+model Application {
+  id                 String   @id @default(uuid()) @db.Uuid
+  applicantDisplayId String?
+
+  propertyId         String   @db.Uuid
+  property           Property @relation(fields: [propertyId], references: [id])
+
+  tenantId           String   @db.Uuid
+  tenant             User     @relation(fields: [tenantId], references: [id])
+
+  status             String   @default("pending_payment")
+  paymentStatus      String   @default("unpaid")
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("applications")
+}
+
+model Payment {
+  id            String   @id @default(uuid()) @db.Uuid
+
+  userId        String   @db.Uuid
+  user          User     @relation(fields: [userId], references: [id])
+
+  amount        Float
+  currency      String   @default("USD")
+  status        String   @default("pending")
+  transactionId String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("payments")
+}
