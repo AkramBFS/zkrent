@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { stripe } from '@/lib/stripe';
-import { prisma } from '@/lib/db';
+import { getStripe } from '@/lib/stripe';
+import { prisma } from '@/lib/prisma';
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       body,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
@@ -33,15 +33,35 @@ export async function POST(req: NextRequest) {
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as any;
-    const { applicationId } = session.metadata;
+    const { applicationId, userId } = session.metadata || {};
 
     if (applicationId) {
+      // 1. Update Payment record
+      await prisma.payment.updateMany({
+        where: {
+          OR: [
+            { stripeSessionId: session.id },
+            { applicationId: applicationId },
+          ],
+        },
+        data: {
+          status: 'PAID',
+          stripePaymentIntentId: session.payment_intent ? String(session.payment_intent) : undefined,
+          transactionId: session.id,
+        },
+      });
+
+      // 2. Update Application record
       await prisma.application.update({
         where: { id: applicationId },
-        data: { paymentStatus: 'PAID' },
+        data: {
+          paymentStatus: 'PAID',
+          status: 'PAYMENT_CONFIRMED',
+        },
       });
     }
   }
 
   return NextResponse.json({ received: true });
 }
+

@@ -19,16 +19,21 @@ import {
   FluentWalletBuilder,
 } from '@midnight-ntwrk/testkit-js';
 import * as Rx from 'rxjs';
-import { CompiledContract } from '@midnight-ntwrk/compact-runtime';
-import { createUnprovenDeployTx, submitTxAsync } from '@midnight-ntwrk/midnight-js-contracts';
-import { sampleSigningKey } from '@midnight-ntwrk/compact-runtime';
+import { CompiledContract } from '@midnight-ntwrk/compact-js';
+import { deployContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
 import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import type { MidnightProviders } from '@midnight-ntwrk/midnight-js-types';
+import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
 import { Contract } from '../contracts/managed/qualification/contract/index.js';
 import pino from 'pino';
+import fs from 'fs';
+import path from 'path';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: '.env.local' });
 
 const logger = pino({ level: 'info', transport: { target: 'pino-pretty' } });
 
@@ -59,7 +64,7 @@ class MidnightWalletProvider implements MidnightProvider, WalletProvider {
     ttl: Date = ttlOneHour(),
   ): Promise<FinalizedTransaction> {
     const recipe = await this.wallet.balanceUnboundTransaction(
-      tx,
+      tx as any,
       {
         shieldedSecretKeys: this.zswapSecretKeys,
         dustSecretKey: this.dustSecretKey,
@@ -129,6 +134,7 @@ async function syncWallet(
   timeout = 300_000,
 ): Promise<FacadeState> {
   logger.info('Syncing wallet...');
+  let lastStatus = '';
   let emissionCount = 0;
   return Rx.firstValueFrom(
     wallet.state().pipe(
@@ -137,9 +143,11 @@ async function syncWallet(
         const shielded = isProgressStrictlyComplete(state.shielded.state.progress);
         const unshielded = isProgressStrictlyComplete(state.unshielded.progress);
         const dust = isProgressStrictlyComplete(state.dust.state.progress);
-        logger.info(
-          `Wallet sync [${emissionCount}]: shielded=${shielded}, unshielded=${unshielded}, dust=${dust}`,
-        );
+        const status = `shielded=${shielded}, unshielded=${unshielded}, dust=${dust}`;
+        if (status !== lastStatus || emissionCount % 50 === 0) {
+          lastStatus = status;
+          logger.info(`Wallet sync [${emissionCount}]: ${status}`);
+        }
       }),
       Rx.filter(
         (state: FacadeState) =>
@@ -173,8 +181,6 @@ function buildProviders(
     networkId: string;
   },
 ): MidnightProviders<any> {
-  const { NodeZkConfigProvider } = require('@midnight-ntwrk/midnight-js-node-zk-config-provider');
-  
   setNetworkId(config.networkId);
 
   const zkConfigProvider = new NodeZkConfigProvider(zkConfigPath);
@@ -182,7 +188,6 @@ function buildProviders(
   return {
     privateStateProvider: levelPrivateStateProvider({
       privateStateStoreName: `qualification-deploy-${Date.now()}`,
-      walletProvider: wallet,
       privateStoragePasswordProvider: () => 'deploy-secure-password-2024',
       accountId: `deploy-${Date.now()}`,
     }),
@@ -194,9 +199,24 @@ function buildProviders(
   };
 }
 
+function updateEnvFile(contractAddress: string) {
+  const envPath = path.resolve(process.cwd(), '.env.local');
+  if (fs.existsSync(envPath)) {
+    let content = fs.readFileSync(envPath, 'utf8');
+    if (content.includes('MIDNIGHT_CONTRACT_ADDRESS=')) {
+      content = content.replace(/MIDNIGHT_CONTRACT_ADDRESS=".*?"/g, `MIDNIGHT_CONTRACT_ADDRESS="${contractAddress}"`);
+      content = content.replace(/MIDNIGHT_CONTRACT_ADDRESS=.*/g, `MIDNIGHT_CONTRACT_ADDRESS="${contractAddress}"`);
+    } else {
+      content += `\nMIDNIGHT_CONTRACT_ADDRESS="${contractAddress}"\n`;
+    }
+    fs.writeFileSync(envPath, content, 'utf8');
+    logger.info(`Updated .env.local with MIDNIGHT_CONTRACT_ADDRESS=${contractAddress}`);
+  }
+}
+
 async function main() {
   const network = process.env.MIDNIGHT_NETWORK ?? 'preprod';
-  
+
   const config: EnvironmentConfiguration = {
     walletNetworkId: network,
     networkId: network,
@@ -208,10 +228,10 @@ async function main() {
     proofServer: process.env.MIDNIGHT_PROOF_SERVER_URL ?? 'https://api-preprod.1am.xyz',
   };
 
-  const seed = process.env.MIDNIGHT_DEPLOY_SEED ?? 
+  const seed = process.env.MIDNIGHT_DEPLOY_SEED ??
     '0000000000000000000000000000000000000000000000000000000000000001';
 
-  const zkConfigPath = './contracts/managed/qualification';
+  const zkConfigPath = path.resolve(process.cwd(), 'contracts/managed/qualification');
 
   const wallet = await MidnightWalletProvider.build(logger, config, seed);
   await wallet.start();
@@ -224,26 +244,21 @@ async function main() {
     networkId: config.networkId,
   });
 
-  const compiledContract = CompiledContract.make('QualificationContract', Contract).pipe(
+  const compiledContract = CompiledContract.make('QualificationContract', Contract as any).pipe(
     CompiledContract.withVacantWitnesses,
     CompiledContract.withCompiledFileAssets(zkConfigPath),
   );
 
-  const deployTxData = await createUnprovenDeployTx(
-    { zkConfigProvider: providers.zkConfigProvider, walletProvider: providers.walletProvider },
-    { compiledContract, args: [MIN_INCOME_REQ], signingKey: sampleSigningKey() },
-  );
+  const deployedContract = await deployContract(providers, {
+    compiledContract: compiledContract as any,
+    args: [MIN_INCOME_REQ],
+  });
 
-  const contractAddress = deployTxData.public.contractAddress;
-  logger.info(`Contract address (pre-submit): ${contractAddress}`);
-
-  await submitTxAsync(providers, { unprovenTx: deployTxData.private.unprovenTx });
-
-  await providers.privateStateProvider.setContractAddress(contractAddress);
-  await providers.privateStateProvider.setSigningKey(contractAddress, deployTxData.private.signingKey);
-
+  const contractAddress = deployedContract.deployTxData.public.contractAddress;
   logger.info(`✅ Deployed! MIDNIGHT_CONTRACT_ADDRESS=${contractAddress}`);
   console.log(`MIDNIGHT_CONTRACT_ADDRESS=${contractAddress}`);
+
+  updateEnvFile(contractAddress);
 
   await wallet.stop();
   process.exit(0);

@@ -83,34 +83,39 @@ export default function ZkVerificationPage() {
     }, 2000);
 
     // Stage 4: Midnight Network submission & completion
-    setTimeout(() => {
+    setTimeout(async () => {
       setProgress(100);
       setProvingStage('Submitting cryptographic proof to Midnight Network contract...');
 
-      const result = submitVerificationProof(applicationId, {
-        income: annualIncome,
-        backgroundVerified,
-        employmentVerified,
-      });
+      try {
+        const result = await submitVerificationProof(applicationId, {
+          income: annualIncome,
+          backgroundVerified,
+          employmentVerified,
+        });
 
-      setProofResult(result.proof);
+        setProofResult(result.proof);
 
-      setTimeout(() => {
-        setStep(4);
-        if (result.isEligible) {
-          try {
-            confetti({
-              particleCount: 80,
-              spread: 70,
-              origin: { y: 0.6 },
-              colors: ['#4FB3A5', '#AE8B3F', '#EDECE4'],
-            });
-          } catch (e) {
-            // ignore if confetti fails
+        setTimeout(() => {
+          setStep(4);
+          if (result.isEligible) {
+            try {
+              confetti({
+                particleCount: 80,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#4FB3A5', '#AE8B3F', '#EDECE4'],
+              });
+            } catch (e) {
+              // ignore if confetti fails
+            }
           }
-        }
-      }, 700);
+        }, 700);
+      } catch (err) {
+        console.error('Proving error:', err);
+      }
     }, 2800);
+
   };
 
   if (!application) {

@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../../",
+  "sources": ["qualification.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAcA;;;;;;;;;;;;;;;;MAIA,AAAA,mBAWC;;;;;;;;;;;;;;;;;;;;;;;;OAAA;;;;;;;;GAbA;EAFD;;;;;UAAY,WAAmB;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IAV/B;;;;;;;;;yEAAqC;IAWnC;;;;;;;2HAAwB,WAAS;;yEAArB;;;;;;;GACb;EAVD,AAAA,eAAiC;;0DAAjC,YAAiC;;;;;;;;;;;;;;GAAA;EACjC,AAAA,kBAAmC;;0DAAnC,eAAmC;;;;;;;;;;;;;;GAAA;EAWnC,AAAA,4BAWC;UAVO,QAAuB;UACvB,OAAyB;4BAExB,QAAM;;oDAAI;;;;;;;;;;;yHAAY;;4BACtB,OAAK;;eAGS,QAAM;;uCAAI;;;;;;;;;;;4GAAY;2BAClB,OAAK;GAE/B;;;;;;;;;;;;;;;;IAzBD;qCAAA;;;;;;;;;;;0GAAqC;KAAA;;;;;;;;;;;;;;;;"
+}

@@ -61,9 +61,9 @@ export default function EditPropertyPage() {
     );
   }
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateProperty(property.id, {
+    await updateProperty(property.id, {
       title,
       description,
       address,
@@ -81,6 +81,7 @@ export default function EditPropertyPage() {
       router.push(`/landlord/properties/${property.id}`);
     }, 800);
   };
+
 
   return (
     <div className="min-h-screen bg-[#EDECE4] py-8">

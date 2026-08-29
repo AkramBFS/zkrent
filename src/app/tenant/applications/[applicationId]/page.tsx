@@ -58,14 +58,15 @@ export default function TenantApplicationDetailsPage() {
   const isPaid = application.paymentStatus === 'paid';
   const isVerified = !!application.verification;
 
-  const handleGrantConsent = () => {
-    grantRevealConsent(application.id);
+  const handleGrantConsent = async () => {
+    await grantRevealConsent(application.id);
     setConsentSuccess('Identity information securely authorized for lease drafting!');
   };
 
-  const handleDeclineConsent = () => {
-    declineRevealConsent(application.id);
+  const handleDeclineConsent = async () => {
+    await declineRevealConsent(application.id);
   };
+
 
   return (
     <div className="min-h-screen bg-[#EDECE4] py-8">
