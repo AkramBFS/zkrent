@@ -7,168 +7,178 @@ datasource db {
   provider = "postgresql"
 }
 
-enum UserRole {
-  TENANT
-  LANDLORD
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model applications {
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id     String             @db.Uuid
+  property_id   String             @db.Uuid
+  status        application_status @default(DRAFT)
+  created_at    DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime           @default(now()) @db.Timestamptz(6)
+  properties    properties         @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users         users              @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  payments      payments[]
+  verifications verifications?
+
+  @@unique([tenant_id, property_id])
+  @@index([property_id], map: "idx_applications_property_id")
+  @@index([property_id, status], map: "idx_applications_property_status")
+  @@index([status], map: "idx_applications_status")
+  @@index([tenant_id], map: "idx_applications_tenant_id")
+  @@index([tenant_id, status], map: "idx_applications_tenant_status")
 }
 
-enum ApplicationStatus {
-  PENDING_PAYMENT
-  PAYMENT_CONFIRMED
-  VERIFYING
-  ZK_VERIFIED
-  ZK_REJECTED
-  LEASE_OFFERED
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model payments {
+  id                         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  application_id             String         @db.Uuid
+  user_id                    String         @db.Uuid
+  stripe_checkout_session_id String         @unique @db.VarChar(255)
+  stripe_payment_intent_id   String?        @unique @db.VarChar(255)
+  amount_cents               Int
+  currency                   String         @db.VarChar(3)
+  status                     payment_status @default(PENDING)
+  created_at                 DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime       @default(now()) @db.Timestamptz(6)
+  applications               applications   @relation(fields: [application_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                      users          @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([application_id], map: "idx_payments_application_id")
+  @@index([status], map: "idx_payments_status")
+  @@index([user_id], map: "idx_payments_user_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model properties {
+  id                     String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  landlord_id            String            @db.Uuid
+  title                  String            @db.VarChar(255)
+  description            String?
+  property_type          property_type
+  address                String?
+  city                   String?           @db.VarChar(120)
+  country                String?           @db.VarChar(120)
+  monthly_rent_cents     Int
+  currency               String            @default("USD") @db.VarChar(3)
+  bedrooms               Int?              @db.SmallInt
+  bathrooms              Int?              @db.SmallInt
+  area_m2                Decimal?          @db.Decimal(10, 2)
+  status                 property_status   @default(DRAFT)
+  income_threshold_cents BigInt?
+  requires_background    Boolean           @default(false)
+  requires_employment    Boolean           @default(false)
+  verification_fee_cents Int               @default(500)
+  verification_currency  String            @default("USD") @db.VarChar(3)
+  created_at             DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime          @default(now()) @db.Timestamptz(6)
+  applications           applications[]
+  users                  users             @relation(fields: [landlord_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  property_images        property_images[]
+
+  @@index([city], map: "idx_properties_city")
+  @@index([landlord_id], map: "idx_properties_landlord_id")
+  @@index([monthly_rent_cents], map: "idx_properties_monthly_rent")
+  @@index([property_type], map: "idx_properties_property_type")
+  @@index([status, city, property_type, monthly_rent_cents], map: "idx_properties_search")
+  @@index([status], map: "idx_properties_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model property_images {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  property_id   String     @db.Uuid
+  image_url     String
+  display_order Int        @default(0)
+  created_at    DateTime   @default(now()) @db.Timestamptz(6)
+  properties    properties @relation(fields: [property_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([property_id, display_order], map: "idx_property_images_order")
+  @@index([property_id], map: "idx_property_images_property_id")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model users {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role             user_role
+  email            String         @unique @db.VarChar(255)
+  display_name     String?        @db.VarChar(120)
+  auth_provider    String?        @db.VarChar(50)
+  auth_provider_id String?        @db.VarChar(255)
+  created_at       DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime       @default(now()) @db.Timestamptz(6)
+  applications     applications[]
+  payments         payments[]
+  properties       properties[]
+
+  @@unique([auth_provider, auth_provider_id], map: "users_auth_provider_identity_unique")
+  @@index([role], map: "idx_users_role")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model verifications {
+  id                         String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  application_id             String              @unique @db.Uuid
+  status                     verification_status @default(PENDING)
+  income_requirement_met     Boolean?
+  background_requirement_met Boolean?
+  employment_requirement_met Boolean?
+  eligible                   Boolean?
+  transaction_hash           String?             @db.VarChar(255)
+  contract_address           String?             @db.VarChar(255)
+  proof_reference            String?             @db.VarChar(255)
+  verified_at                DateTime?           @db.Timestamptz(6)
+  created_at                 DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime            @default(now()) @db.Timestamptz(6)
+  applications               applications        @relation(fields: [application_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([status], map: "idx_verifications_status")
+  @@index([transaction_hash], map: "idx_verifications_transaction_hash")
+}
+
+enum application_status {
+  DRAFT
+  PAYMENT_PENDING
+  PAID
+  VERIFICATION_PENDING
+  VERIFIED
+  REJECTED
   WITHDRAWN
 }
 
-enum PaymentStatus {
+enum payment_status {
   PENDING
-  PAID
+  COMPLETED
   FAILED
   REFUNDED
 }
 
-enum VerificationStatus {
+enum property_status {
+  DRAFT
+  PUBLISHED
+  RENTED
+  ARCHIVED
+}
+
+enum property_type {
+  APARTMENT
+  HOUSE
+  STUDIO
+  ROOM
+  OTHER
+}
+
+enum user_role {
+  TENANT
+  LANDLORD
+  ADMIN
+}
+
+enum verification_status {
   PENDING
+  PROVING
   VERIFIED
   FAILED
-}
-
-enum RevealStatus {
-  NONE
-  REQUESTED
-  GRANTED
-  DECLINED
-}
-
-model User {
-  id             String   @id @default(uuid()) @db.Uuid
-  role           UserRole
-
-  email          String   @unique
-  displayName    String?
-
-  passwordHash   String?
-
-  authProvider   String?
-  authProviderId String?
-
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  properties     Property[]
-  applications   Application[]
-  payments       Payment[]
-
-  @@unique([authProvider, authProviderId])
-  @@map("users")
-}
-
-model Property {
-  id                      String   @id @default(uuid()) @db.Uuid
-  title                   String
-  address                 String
-  city                    String
-  state                   String
-  zip                     String
-  price                   Int
-  beds                    Int
-  baths                   Float
-  sqft                    Int
-  type                    String
-  description             String
-  images                  String[] @default([])
-  amenities               String[] @default([])
-  status                  String   @default("active")
-
-  minIncome               Int      @default(75000)
-  requireBackground       Boolean  @default(true)
-  requireEmployment       Boolean  @default(true)
-  verificationFee         Float    @default(5.0)
-
-  landlordId              String   @db.Uuid
-  landlord                User     @relation(fields: [landlordId], references: [id])
-
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
-
-  applications            Application[]
-
-  @@map("properties")
-}
-
-model Application {
-  id                 String             @id @default(uuid()) @db.Uuid
-  applicantDisplayId String
-
-  propertyId         String             @db.Uuid
-  property           Property           @relation(fields: [propertyId], references: [id])
-
-  tenantId           String             @db.Uuid
-  tenant             User               @relation(fields: [tenantId], references: [id])
-
-  status             ApplicationStatus  @default(PENDING_PAYMENT)
-  paymentStatus      PaymentStatus      @default(PENDING)
-  verificationStatus VerificationStatus @default(PENDING)
-
-  revealStatus       RevealStatus       @default(NONE)
-  revealRequestedAt  DateTime?
-  revealGrantedAt    DateTime?
-
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-
-  payments           Payment[]
-  verifications      Verification[]
-
-  @@unique([propertyId, tenantId])
-  @@map("applications")
-}
-
-model Payment {
-  id                     String        @id @default(uuid()) @db.Uuid
-
-  applicationId          String        @db.Uuid
-  application            Application   @relation(fields: [applicationId], references: [id])
-
-  userId                 String        @db.Uuid
-  user                   User          @relation(fields: [userId], references: [id])
-
-  amount                 Float
-  currency               String        @default("USD")
-  status                 PaymentStatus @default(PENDING)
-
-  stripeSessionId        String?       @unique
-  stripePaymentIntentId  String?
-  transactionId          String?
-
-  createdAt              DateTime      @default(now())
-  updatedAt              DateTime      @updatedAt
-
-  @@map("payments")
-}
-
-model Verification {
-  id            String             @id @default(uuid()) @db.Uuid
-
-  applicationId String             @db.Uuid
-  application   Application        @relation(fields: [applicationId], references: [id])
-
-  status        VerificationStatus @default(PENDING)
-  isEligible    Boolean            @default(false)
-
-  proofHash     String?
-  midnightTx    String?
-  circuitId     String?
-  merkleRoot    String?
-  blockHeight   Int?
-  provingTimeMs Int?
-
-  verifiedAt    DateTime?
-
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-
-  @@map("verifications")
 }
