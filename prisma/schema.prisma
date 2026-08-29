@@ -11,3 +11,11 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model Application {
+  id            String   @id @default(uuid())
+  tenantId      String
+  propertyId    String
+  paymentStatus String   @default("PENDING")
+  createdAt     DateTime @default(now())
+}

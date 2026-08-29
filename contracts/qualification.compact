@@ -1,0 +1,22 @@
+pragma language_version >= 0.22;
+
+import CompactStandardLibrary;
+
+export ledger minIncomeReq: Uint<64>;
+
+witness annualIncome(): Uint<64>;
+witness backgroundClean(): Boolean;
+
+constructor(minIncome: Uint<64>) {
+  minIncomeReq = minIncome;
+}
+
+export circuit verifyQualification(): { incomeOk: Boolean, backgroundOk: Boolean } {
+  const income = annualIncome();
+  const clean = backgroundClean();
+  
+  assert(income >= minIncomeReq, "Income below requirement");
+  assert(clean == true, "Background check failed");
+  
+  return { incomeOk: disclose(income >= minIncomeReq), backgroundOk: disclose(clean) };
+}
