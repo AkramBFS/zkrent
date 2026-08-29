@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useZkRent } from '@/context/ZkRentContext';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { LUXURY_EASE } from '@/components/motion/motion';
 import {
   ShieldCheck,
   Building2,
@@ -22,9 +24,19 @@ import {
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { activeRole, setActiveRole, resetDemoData, applications } = useZkRent();
+  const { activeRole, setActiveRole, resetDemoData, applications, currentUser } = useZkRent();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const prefersReduced = useReducedMotion();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 15);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const isTenantRoute = pathname.startsWith('/tenant');
   const isLandlordRoute = pathname.startsWith('/landlord');
@@ -66,7 +78,13 @@ export function Navbar() {
   const verifiedCount = applications.filter((a) => a.status === 'verified_eligible').length;
 
   return (
-    <header className="sticky top-0 z-50 bg-[#E5E0D8]/90 backdrop-blur-md border-b border-[#231F20]/10">
+    <header
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? 'bg-[#E5E0D8]/95 backdrop-blur-md border-b border-[#231F20]/15 shadow-sm'
+          : 'bg-[#E5E0D8]/90 backdrop-blur-md border-b border-[#231F20]/10'
+      }`}
+    >
       {/* Top Utility Demo Bar */}
       <div className="bg-[#231F20] text-[#E5E0D8] text-xs py-1.5 px-4 font-mono">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -82,64 +100,79 @@ export function Navbar() {
           <div className="flex items-center gap-3">
             {/* Fast Role Switcher */}
             <div className="relative">
-              <button
+              <motion.button
+                whileHover={prefersReduced ? undefined : { scale: 1.02 }}
+                whileTap={prefersReduced ? undefined : { scale: 0.98 }}
                 onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-                className="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#3D3531] hover:bg-[#3D3531] text-[#E5E0D8] text-[11px] font-mono border border-white/10 transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#3D3531] hover:bg-[#3D3531] text-[#E5E0D8] text-[11px] font-mono border border-white/10 transition-colors cursor-pointer"
               >
                 <span>Viewing as:</span>
                 <span className="text-[#B86A36] font-bold uppercase">
                   {isLandlordRoute ? 'Landlord' : isTenantRoute ? 'Tenant' : 'Marketplace'}
                 </span>
-                <ChevronDown className="w-3 h-3 text-[#908682]" />
-              </button>
+                <motion.span
+                  animate={{ rotate: roleMenuOpen ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ChevronDown className="w-3 h-3 text-[#908682]" />
+                </motion.span>
+              </motion.button>
 
-              {roleMenuOpen && (
-                <div className="absolute right-0 mt-1 w-44 bg-[#231F20] border border-white/15 rounded-md shadow-2xl py-1 z-50">
-                  <button
-                    onClick={() => {
-                      setActiveRole('tenant');
-                      setRoleMenuOpen(false);
-                      router.push('/tenant');
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs font-mono text-white hover:bg-[#3D3531] flex items-center gap-2"
+              <AnimatePresence>
+                {roleMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    transition={{ duration: 0.18, ease: LUXURY_EASE }}
+                    className="absolute right-0 mt-1 w-44 bg-[#231F20] border border-white/15 rounded-md shadow-2xl py-1 z-50 origin-top-right"
                   >
-                    <UserCheck className="w-3.5 h-3.5 text-[#00A8E8]" />
-                    <span>Tenant Portal</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setActiveRole('landlord');
-                      setRoleMenuOpen(false);
-                      router.push('/landlord');
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs font-mono text-white hover:bg-[#3D3531] flex items-center gap-2"
-                  >
-                    <Building2 className="w-3.5 h-3.5 text-[#B86A36]" />
-                    <span>Landlord Portal</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setRoleMenuOpen(false);
-                      router.push('/properties');
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs font-mono text-white hover:bg-[#3D3531] flex items-center gap-2"
-                  >
-                    <Home className="w-3.5 h-3.5 text-white/70" />
-                    <span>Marketplace Browse</span>
-                  </button>
-                  <div className="border-t border-white/10 my-1" />
-                  <button
-                    onClick={() => {
-                      resetDemoData();
-                      setRoleMenuOpen(false);
-                    }}
-                    className="w-full text-left px-3 py-1.5 text-[11px] font-mono text-amber-300 hover:bg-[#3D3531] flex items-center gap-1.5"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Reset Demo State</span>
-                  </button>
-                </div>
-              )}
+                    <button
+                      onClick={() => {
+                        setActiveRole('tenant');
+                        setRoleMenuOpen(false);
+                        router.push('/tenant');
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-mono text-white hover:bg-[#3D3531] flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <UserCheck className="w-3.5 h-3.5 text-[#00A8E8]" />
+                      <span>Tenant Portal</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveRole('landlord');
+                        setRoleMenuOpen(false);
+                        router.push('/landlord');
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-mono text-white hover:bg-[#3D3531] flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <Building2 className="w-3.5 h-3.5 text-[#B86A36]" />
+                      <span>Landlord Portal</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setRoleMenuOpen(false);
+                        router.push('/properties');
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-mono text-white hover:bg-[#3D3531] flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <Home className="w-3.5 h-3.5 text-white/70" />
+                      <span>Marketplace Browse</span>
+                    </button>
+                    <div className="border-t border-white/10 my-1" />
+                    <button
+                      onClick={() => {
+                        resetDemoData();
+                        setRoleMenuOpen(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 text-[11px] font-mono text-amber-300 hover:bg-[#3D3531] flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Reset Demo State</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
@@ -151,9 +184,12 @@ export function Navbar() {
           {/* Brand Logo */}
           <div className="flex items-center gap-8">
             <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="w-9 h-9 rounded-md bg-[#231F20] text-[#B86A36] flex items-center justify-center shadow group-hover:bg-[#3D3531] transition-colors border border-[#B86A36]/40">
+              <motion.div
+                whileHover={prefersReduced ? undefined : { scale: 1.05, rotate: -2 }}
+                className="w-9 h-9 rounded-md bg-[#231F20] text-[#B86A36] flex items-center justify-center shadow group-hover:bg-[#3D3531] transition-colors border border-[#B86A36]/40"
+              >
                 <ShieldCheck className="w-5 h-5 text-[#B86A36]" />
-              </div>
+              </motion.div>
               <div className="flex flex-col">
                 <span className="font-serif font-extrabold text-xl tracking-tight text-[#231F20]">
                   ZkRent
@@ -164,137 +200,113 @@ export function Navbar() {
               </div>
             </Link>
 
-            {/* Navigation Links based on Mode */}
-            <nav className="hidden md:flex items-center gap-1">
+            {/* Navigation Links based on Mode with Animated Indicator */}
+            <nav className="hidden md:flex items-center gap-1 relative">
               {isLandlordRoute ? (
                 <>
-                  <Link
-                    href="/landlord"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      pathname === '/landlord'
-                        ? 'bg-[#231F20] text-white'
-                        : 'text-[#231F20] hover:bg-[#231F20]/10'
-                    }`}
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/landlord/properties"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      pathname.startsWith('/landlord/properties') && pathname !== '/landlord/properties/new'
-                        ? 'bg-[#231F20] text-white'
-                        : 'text-[#231F20] hover:bg-[#231F20]/10'
-                    }`}
-                  >
-                    My Properties
-                  </Link>
-                  <Link
-                    href="/landlord/applications"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      pathname.startsWith('/landlord/applications')
-                        ? 'bg-[#231F20] text-white'
-                        : 'text-[#231F20] hover:bg-[#231F20]/10'
-                    }`}
-                  >
-                    Applications
-                  </Link>
-                  <Link
-                    href="/landlord/settings"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      pathname === '/landlord/settings'
-                        ? 'bg-[#231F20] text-white'
-                        : 'text-[#231F20] hover:bg-[#231F20]/10'
-                    }`}
-                  >
-                    Settings
-                  </Link>
+                  {[
+                    { href: '/landlord', label: 'Dashboard', isActive: pathname === '/landlord' },
+                    {
+                      href: '/landlord/properties',
+                      label: 'My Properties',
+                      isActive: pathname.startsWith('/landlord/properties') && pathname !== '/landlord/properties/new',
+                    },
+                    {
+                      href: '/landlord/applications',
+                      label: 'Applications',
+                      isActive: pathname.startsWith('/landlord/applications'),
+                    },
+                    { href: '/landlord/settings', label: 'Settings', isActive: pathname === '/landlord/settings' },
+                  ].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`relative px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        item.isActive ? 'text-white' : 'text-[#231F20] hover:bg-[#231F20]/10'
+                      }`}
+                    >
+                      {item.isActive && (
+                        <motion.div
+                          layoutId="active-landlord-nav-pill"
+                          className="absolute inset-0 bg-[#231F20] rounded-md z-0"
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                        />
+                      )}
+                      <span className="relative z-10">{item.label}</span>
+                    </Link>
+                  ))}
                 </>
               ) : isTenantRoute ? (
                 <>
-                  <Link
-                    href="/tenant"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      pathname === '/tenant'
-                        ? 'bg-[#231F20] text-white'
-                        : 'text-[#231F20] hover:bg-[#231F20]/10'
-                    }`}
-                  >
-                    Dashboard
-                  </Link>
-                  <Link
-                    href="/tenant/applications"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors relative ${
-                      pathname.startsWith('/tenant/applications')
-                        ? 'bg-[#231F20] text-white'
-                        : 'text-[#231F20] hover:bg-[#231F20]/10'
-                    }`}
-                  >
-                    My Applications
-                    {pendingReveals > 0 && (
-                      <span className="ml-1.5 px-1.5 py-0.2 rounded-full bg-[#B86A36] text-white text-[10px] font-mono">
-                        {pendingReveals}
+                  {[
+                    { href: '/tenant', label: 'Dashboard', isActive: pathname === '/tenant' },
+                    {
+                      href: '/tenant/applications',
+                      label: 'My Applications',
+                      isActive: pathname.startsWith('/tenant/applications'),
+                      badge: pendingReveals > 0 ? pendingReveals : null,
+                    },
+                    {
+                      href: '/tenant/verification',
+                      label: 'Proof Vault',
+                      isActive: pathname.startsWith('/tenant/verification'),
+                    },
+                    {
+                      href: '/properties',
+                      label: 'Browse Rentals',
+                      isActive: false,
+                    },
+                    { href: '/tenant/settings', label: 'Settings', isActive: pathname === '/tenant/settings' },
+                  ].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`relative px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        item.isActive ? 'text-white' : 'text-[#231F20] hover:bg-[#231F20]/10'
+                      }`}
+                    >
+                      {item.isActive && (
+                        <motion.div
+                          layoutId="active-tenant-nav-pill"
+                          className="absolute inset-0 bg-[#231F20] rounded-md z-0"
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                        />
+                      )}
+                      <span className="relative z-10 inline-flex items-center">
+                        {item.label}
+                        {item.badge && (
+                          <span className="ml-1.5 px-1.5 py-0.2 rounded-full bg-[#B86A36] text-white text-[10px] font-mono">
+                            {item.badge}
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </Link>
-                  <Link
-                    href="/tenant/verification"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      pathname.startsWith('/tenant/verification')
-                        ? 'bg-[#231F20] text-white'
-                        : 'text-[#231F20] hover:bg-[#231F20]/10'
-                    }`}
-                  >
-                    Proof Vault
-                  </Link>
-                  <Link
-                    href="/properties"
-                    className="px-3 py-2 rounded-md text-sm font-medium text-[#231F20] hover:bg-[#231F20]/10"
-                  >
-                    Browse Rentals
-                  </Link>
-                  <Link
-                    href="/tenant/settings"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      pathname === '/tenant/settings'
-                        ? 'bg-[#231F20] text-white'
-                        : 'text-[#231F20] hover:bg-[#231F20]/10'
-                    }`}
-                  >
-                    Settings
-                  </Link>
+                    </Link>
+                  ))}
                 </>
               ) : (
                 <>
-                  <Link
-                    href="/properties"
-                    className={`px-3.5 py-2 rounded-md text-sm font-medium transition-colors ${
-                      pathname === '/properties'
-                        ? 'bg-[#231F20] text-white'
-                        : 'text-[#231F20] hover:bg-[#231F20]/10'
-                    }`}
-                  >
-                    Properties
-                  </Link>
-                  <Link
-                    href="/how-it-works"
-                    className={`px-3.5 py-2 rounded-md text-sm font-medium transition-colors ${
-                      pathname === '/how-it-works'
-                        ? 'bg-[#231F20] text-white'
-                        : 'text-[#231F20] hover:bg-[#231F20]/10'
-                    }`}
-                  >
-                    How It Works
-                  </Link>
-                  <Link
-                    href="/about"
-                    className={`px-3.5 py-2 rounded-md text-sm font-medium transition-colors ${
-                      pathname === '/about'
-                        ? 'bg-[#231F20] text-white'
-                        : 'text-[#231F20] hover:bg-[#231F20]/10'
-                    }`}
-                  >
-                    About ZK Privacy
-                  </Link>
+                  {[
+                    { href: '/properties', label: 'Properties', isActive: pathname === '/properties' },
+                    { href: '/how-it-works', label: 'How It Works', isActive: pathname === '/how-it-works' },
+                    { href: '/about', label: 'About ZK Privacy', isActive: pathname === '/about' },
+                  ].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`relative px-3.5 py-2 rounded-md text-sm font-medium transition-colors ${
+                        item.isActive ? 'text-white' : 'text-[#231F20] hover:bg-[#231F20]/10'
+                      }`}
+                    >
+                      {item.isActive && (
+                        <motion.div
+                          layoutId="active-public-nav-pill"
+                          className="absolute inset-0 bg-[#231F20] rounded-md z-0"
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                        />
+                      )}
+                      <span className="relative z-10">{item.label}</span>
+                    </Link>
+                  ))}
                 </>
               )}
             </nav>
@@ -304,56 +316,88 @@ export function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             {isLandlordRoute ? (
               <>
-                <Link
-                  href="/landlord/properties/new"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#B86A36] hover:bg-[#A05A2C] text-white font-medium text-sm shadow-sm transition-all"
-                >
-                  <PlusCircle className="w-4 h-4" />
-                  <span>Create Listing</span>
-                </Link>
+                <motion.div whileHover={prefersReduced ? undefined : { scale: 1.02 }} whileTap={prefersReduced ? undefined : { scale: 0.98 }}>
+                  <Link
+                    href="/landlord/properties/new"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-[#B86A36] hover:bg-[#A05A2C] text-white font-medium text-sm shadow-sm transition-all"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    <span>Create Listing</span>
+                  </Link>
+                </motion.div>
                 <Link
                   href="/tenant"
-                  className="px-3 py-2 text-xs font-mono text-[#3D3531] hover:text-[#231F20] border border-[#E5E0D8] rounded-md hover:bg-[#231F20]/5"
+                  className="px-3 py-2 text-xs font-mono text-[#3D3531] hover:text-[#231F20] border border-[#E5E0D8] rounded-md hover:bg-[#231F20]/5 transition-colors"
                 >
                   Switch to Tenant
                 </Link>
               </>
             ) : isTenantRoute ? (
               <>
-                <Link
-                  href="/properties"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#00A8E8] hover:bg-[#0277BD] text-white font-medium text-sm shadow-sm transition-all"
-                >
-                  <Home className="w-4 h-4 text-[#B86A36]" />
-                  <span>Find a Home</span>
-                </Link>
+                <motion.div whileHover={prefersReduced ? undefined : { scale: 1.02 }} whileTap={prefersReduced ? undefined : { scale: 0.98 }}>
+                  <Link
+                    href="/properties"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#00A8E8] hover:bg-[#0277BD] text-white font-medium text-sm shadow-sm transition-all"
+                  >
+                    <Home className="w-4 h-4 text-[#B86A36]" />
+                    <span>Find a Home</span>
+                  </Link>
+                </motion.div>
                 <Link
                   href="/landlord"
-                  className="px-3 py-2 text-xs font-mono text-[#3D3531] hover:text-[#231F20] border border-[#E5E0D8] rounded-md hover:bg-[#231F20]/5"
+                  className="px-3 py-2 text-xs font-mono text-[#3D3531] hover:text-[#231F20] border border-[#E5E0D8] rounded-md hover:bg-[#231F20]/5 transition-colors"
                 >
                   Switch to Landlord
                 </Link>
               </>
             ) : (
               <>
-                <Link
-                  href="/login"
-                  className="px-3.5 py-2 text-sm font-medium text-[#231F20] hover:text-[#B86A36] transition-colors"
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/tenant"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#00A8E8] hover:bg-[#0277BD] text-white text-sm font-medium transition-all shadow-sm"
-                >
-                  <span>Tenant Portal</span>
-                </Link>
-                <Link
-                  href="/landlord"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#B86A36] hover:bg-[#A05A2C] text-white text-sm font-medium transition-all shadow-sm"
-                >
-                  <span>Landlord Portal</span>
-                </Link>
+                {/* Redundancy Fix: Check if user is authenticated/active to avoid showing duplicate contradictory buttons */}
+                {currentUser?.id ? (
+                  <>
+                    <motion.div whileHover={prefersReduced ? undefined : { scale: 1.02 }} whileTap={prefersReduced ? undefined : { scale: 0.98 }}>
+                      <Link
+                        href={activeRole === 'landlord' ? '/landlord' : '/tenant'}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#00A8E8] hover:bg-[#0277BD] text-white text-sm font-medium transition-all shadow-sm"
+                      >
+                        <span>{activeRole === 'landlord' ? 'Landlord Portal' : 'Tenant Portal'}</span>
+                      </Link>
+                    </motion.div>
+                    <motion.div whileHover={prefersReduced ? undefined : { scale: 1.02 }} whileTap={prefersReduced ? undefined : { scale: 0.98 }}>
+                      <Link
+                        href={activeRole === 'landlord' ? '/tenant' : '/landlord'}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#B86A36] hover:bg-[#A05A2C] text-white text-sm font-medium transition-all shadow-sm"
+                      >
+                        <span>{activeRole === 'landlord' ? 'Tenant Portal' : 'Landlord Portal'}</span>
+                      </Link>
+                    </motion.div>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      className="px-3.5 py-2 text-sm font-medium text-[#231F20] hover:text-[#B86A36] transition-colors"
+                    >
+                      Log in
+                    </Link>
+                    <motion.div whileHover={prefersReduced ? undefined : { scale: 1.02 }} whileTap={prefersReduced ? undefined : { scale: 0.98 }}>
+                      <Link
+                        href="/tenant"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#00A8E8] hover:bg-[#0277BD] text-white text-sm font-medium transition-all shadow-sm"
+                      >
+                        <span>Tenant Portal</span>
+                      </Link>
+                    </motion.div>
+                    <motion.div whileHover={prefersReduced ? undefined : { scale: 1.02 }} whileTap={prefersReduced ? undefined : { scale: 0.98 }}>
+                      <Link
+                        href="/landlord"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-[#B86A36] hover:bg-[#A05A2C] text-white text-sm font-medium transition-all shadow-sm"
+                      >
+                        <span>Landlord Portal</span>
+                      </Link>
+                    </motion.div>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -362,7 +406,7 @@ export function Navbar() {
           <div className="flex md:hidden items-center gap-2">
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="p-2 rounded-md text-[#231F20] hover:bg-[#231F20]/10"
+              className="p-2 rounded-md text-[#231F20] hover:bg-[#231F20]/10 transition-colors"
             >
               {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -371,70 +415,78 @@ export function Navbar() {
       </div>
 
       {/* Mobile Navigation Drawer */}
-      {mobileOpen && (
-        <div className="md:hidden bg-[#E5E0D8] border-b border-[#E5E0D8] px-4 pt-2 pb-6 space-y-3">
-          <div className="grid grid-cols-2 gap-2 pb-3 border-b border-[#231F20]/10">
-            <button
-              onClick={() => {
-                setActiveRole('tenant');
-                setMobileOpen(false);
-                router.push('/tenant');
-              }}
-              className="p-2 text-center rounded bg-[#231F20] text-white text-xs font-mono"
-            >
-              Tenant View
-            </button>
-            <button
-              onClick={() => {
-                setActiveRole('landlord');
-                setMobileOpen(false);
-                router.push('/landlord');
-              }}
-              className="p-2 text-center rounded bg-[#B86A36] text-white text-xs font-mono"
-            >
-              Landlord View
-            </button>
-          </div>
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: LUXURY_EASE }}
+            className="md:hidden bg-[#E5E0D8] border-b border-[#E5E0D8] px-4 pt-2 pb-6 space-y-3 overflow-hidden"
+          >
+            <div className="grid grid-cols-2 gap-2 pb-3 border-b border-[#231F20]/10">
+              <button
+                onClick={() => {
+                  setActiveRole('tenant');
+                  setMobileOpen(false);
+                  router.push('/tenant');
+                }}
+                className="p-2 text-center rounded bg-[#231F20] text-white text-xs font-mono cursor-pointer"
+              >
+                Tenant View
+              </button>
+              <button
+                onClick={() => {
+                  setActiveRole('landlord');
+                  setMobileOpen(false);
+                  router.push('/landlord');
+                }}
+                className="p-2 text-center rounded bg-[#B86A36] text-white text-xs font-mono cursor-pointer"
+              >
+                Landlord View
+              </button>
+            </div>
 
-          <div className="flex flex-col space-y-1">
-            <Link
-              href="/properties"
-              onClick={() => setMobileOpen(false)}
-              className="px-3 py-2 rounded text-sm font-medium text-[#231F20]"
-            >
-              Browse Properties
-            </Link>
-            <Link
-              href="/how-it-works"
-              onClick={() => setMobileOpen(false)}
-              className="px-3 py-2 rounded text-sm font-medium text-[#231F20]"
-            >
-              How It Works
-            </Link>
-            <Link
-              href="/about"
-              onClick={() => setMobileOpen(false)}
-              className="px-3 py-2 rounded text-sm font-medium text-[#231F20]"
-            >
-              About ZK Privacy
-            </Link>
-            <Link
-              href="/tenant/applications"
-              onClick={() => setMobileOpen(false)}
-              className="px-3 py-2 rounded text-sm font-medium text-[#231F20]"
-            >
-              Tenant Applications
-            </Link>
-            <Link
-              href="/landlord/applications"
-              onClick={() => setMobileOpen(false)}
-              className="px-3 py-2 rounded text-sm font-medium text-[#231F20]"
-            >
-              Landlord Applications
-            </Link>
-          </div>
-        </div>
-      )}
+            <div className="flex flex-col space-y-1">
+              <Link
+                href="/properties"
+                onClick={() => setMobileOpen(false)}
+                className="px-3 py-2 rounded text-sm font-medium text-[#231F20] hover:bg-[#231F20]/5 transition-colors"
+              >
+                Browse Properties
+              </Link>
+              <Link
+                href="/how-it-works"
+                onClick={() => setMobileOpen(false)}
+                className="px-3 py-2 rounded text-sm font-medium text-[#231F20] hover:bg-[#231F20]/5 transition-colors"
+              >
+                How It Works
+              </Link>
+              <Link
+                href="/about"
+                onClick={() => setMobileOpen(false)}
+                className="px-3 py-2 rounded text-sm font-medium text-[#231F20] hover:bg-[#231F20]/5 transition-colors"
+              >
+                About ZK Privacy
+              </Link>
+              <Link
+                href="/tenant/applications"
+                onClick={() => setMobileOpen(false)}
+                className="px-3 py-2 rounded text-sm font-medium text-[#231F20] hover:bg-[#231F20]/5 transition-colors"
+              >
+                Tenant Applications
+              </Link>
+              <Link
+                href="/landlord/applications"
+                onClick={() => setMobileOpen(false)}
+                className="px-3 py-2 rounded text-sm font-medium text-[#231F20] hover:bg-[#231F20]/5 transition-colors"
+              >
+                Landlord Applications
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }

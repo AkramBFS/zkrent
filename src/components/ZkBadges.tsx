@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { ShieldCheck, Check, Sparkles } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { LUXURY_EASE } from '@/components/motion/motion';
 
 interface StampedSealProps {
   status?: 'eligible' | 'ineligible' | 'pending' | 'verified';
@@ -18,6 +20,7 @@ export function StampedSeal({
   className = '',
   subtext,
 }: StampedSealProps) {
+  const prefersReduced = useReducedMotion();
   const isEligible = status === 'eligible' || status === 'verified';
   const isIneligible = status === 'ineligible';
   const isPending = status === 'pending';
@@ -44,10 +47,21 @@ export function StampedSeal({
   const textLabel = isEligible ? 'ELIGIBLE' : isIneligible ? 'INELIGIBLE' : 'PENDING';
 
   return (
-    <div
-      className={`relative flex items-center justify-center select-none ${sizeClasses[size]} ${
-        animate ? 'animate-stamp-snap' : 'rotate-[-1.5deg]'
-      } ${className}`}
+    <motion.div
+      initial={
+        animate && !prefersReduced
+          ? { scale: 2.2, rotate: -22, opacity: 0 }
+          : { scale: 1, rotate: -1.5, opacity: 1 }
+      }
+      animate={{ scale: 1, rotate: -1.5, opacity: 1 }}
+      transition={{
+        type: 'spring',
+        damping: 14,
+        stiffness: 180,
+        mass: 1.1,
+      }}
+      whileHover={prefersReduced ? undefined : { scale: 1.03, rotate: 0 }}
+      className={`relative flex items-center justify-center select-none ${sizeClasses[size]} ${className}`}
     >
       {/* Outer Brass Double Ring */}
       <div
@@ -82,7 +96,7 @@ export function StampedSeal({
           {subtext || 'SEALED & PROVED'}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -95,6 +109,7 @@ export function ZkVerifiedBadge({
   variant?: 'teal' | 'brass' | 'dark' | 'outline';
   size?: 'sm' | 'md';
 }) {
+  const prefersReduced = useReducedMotion();
   const styles = {
     teal: 'bg-[#4A6B32]/15 text-[#3A5427] border-[#4A6B32]/30 dark:bg-[#4A6B32]/30 dark:text-[#00A8E8] dark:border-[#00A8E8]/40',
     brass: 'bg-[#B86A36]/15 text-[#8A4A20] border-[#B86A36]/30',
@@ -105,12 +120,13 @@ export function ZkVerifiedBadge({
   const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs';
 
   return (
-    <span
+    <motion.span
+      whileHover={prefersReduced ? undefined : { scale: 1.03 }}
       className={`inline-flex items-center gap-1.5 font-mono font-medium rounded-md border ${styles[variant]} ${sizeClasses}`}
     >
       <span className="w-1.5 h-1.5 rounded-full bg-[#4A6B32] animate-pulse" />
       {label}
-    </span>
+    </motion.span>
   );
 }
 
@@ -121,6 +137,7 @@ export function ApplicantIdTag({
   id: string;
   size?: 'sm' | 'md' | 'lg';
 }) {
+  const prefersReduced = useReducedMotion();
   const sizes = {
     sm: 'text-xs px-2 py-0.5',
     md: 'text-sm px-2.5 py-1',
@@ -128,11 +145,12 @@ export function ApplicantIdTag({
   };
 
   return (
-    <span
-      className={`inline-flex items-center gap-1 font-mono tracking-wider bg-[#231F20] text-[#E5E0D8] rounded border border-[#231F20]/40 ${sizes[size]}`}
+    <motion.span
+      whileHover={prefersReduced ? undefined : { scale: 1.02 }}
+      className={`inline-flex items-center gap-1 font-mono tracking-wider bg-[#231F20] text-[#E5E0D8] rounded border border-[#231F20]/40 shadow-sm ${sizes[size]}`}
     >
       <span className="text-[#B86A36] font-bold">ID</span>
       <span>{id}</span>
-    </span>
+    </motion.span>
   );
 }
