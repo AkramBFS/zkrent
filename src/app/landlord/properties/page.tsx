@@ -20,25 +20,25 @@ export default function LandlordPropertiesPage() {
   const { properties, applications } = useZkRent();
 
   return (
-    <div className="min-h-screen bg-[#EDECE4] py-8">
+    <div className="min-h-screen bg-[#E5E0D8] py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-[#14213D]/10">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-[#231F20]/10">
           <div>
-            <span className="font-mono text-xs text-[#AE8B3F] font-bold uppercase tracking-widest">
+            <span className="font-mono text-xs text-[#B86A36] font-bold uppercase tracking-widest">
               Listing Portfolio
             </span>
-            <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#14213D] mt-1">
+            <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#231F20] mt-1">
               My Rental Properties
             </h1>
-            <p className="text-sm text-[#4B5A79] mt-1">
+            <p className="text-sm text-[#3D3531] mt-1">
               Manage your listings, adjust zero-knowledge qualification requirements, and monitor applications.
             </p>
           </div>
 
           <Link
             href="/landlord/properties/new"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md bg-[#AE8B3F] hover:bg-[#977732] text-white text-xs font-mono font-bold shadow transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-md bg-[#B86A36] hover:bg-[#A05A2C] text-white text-xs font-mono font-bold shadow transition-all"
           >
             <PlusCircle className="w-4 h-4" />
             <span>+ Add Free Listing</span>
@@ -56,7 +56,7 @@ export default function LandlordPropertiesPage() {
             return (
               <div
                 key={property.id}
-                className="bg-[#F6F5F0] rounded-xl border border-[#14213D]/15 overflow-hidden shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                className="bg-[#FAFAFA] rounded-xl border border-[#E5E0D8] overflow-hidden shadow-card transition-all flex flex-col justify-between"
               >
                 <div>
                   {/* Image */}
@@ -67,7 +67,7 @@ export default function LandlordPropertiesPage() {
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute top-3 left-3">
-                      <span className="px-2.5 py-1 rounded bg-[#14213D]/90 text-[#EDECE4] text-xs font-mono font-medium border border-white/10">
+                      <span className="px-2.5 py-1 rounded bg-[#231F20]/90 text-[#E5E0D8] text-xs font-mono font-medium border border-white/10">
                         {property.type}
                       </span>
                     </div>
@@ -77,7 +77,7 @@ export default function LandlordPropertiesPage() {
                       </span>
                     </div>
                     <div className="absolute bottom-3 right-3">
-                      <span className="px-3 py-1 rounded bg-[#14213D] text-[#AE8B3F] font-serif font-bold text-sm">
+                      <span className="px-3 py-1 rounded bg-[#231F20] text-[#B86A36] font-serif font-bold text-sm">
                         ${property.price.toLocaleString()} / mo
                       </span>
                     </div>
@@ -85,28 +85,28 @@ export default function LandlordPropertiesPage() {
 
                   {/* Body info */}
                   <div className="p-5 space-y-3">
-                    <h3 className="font-serif text-lg font-bold text-[#14213D]">
+                    <h3 className="font-serif text-lg font-bold text-[#231F20]">
                       {property.title}
                     </h3>
-                    <div className="flex items-center gap-1.5 text-xs text-[#4B5A79]">
-                      <MapPin className="w-3.5 h-3.5 text-[#AE8B3F]" />
+                    <div className="flex items-center gap-1.5 text-xs text-[#3D3531]">
+                      <MapPin className="w-3.5 h-3.5 text-[#B86A36]" />
                       <span>{property.address}, {property.city}</span>
                     </div>
 
                     {/* Stats metrics */}
-                    <div className="p-3 rounded-lg bg-[#EDECE4] border border-[#14213D]/10 flex items-center justify-between text-xs font-mono">
+                    <div className="p-3 rounded-lg bg-[#E5E0D8] border border-[#231F20]/10 flex items-center justify-between text-xs font-mono">
                       <div>
-                        <span className="text-[#4B5A79]">Applications:</span>{' '}
-                        <strong className="text-[#14213D]">{propApps.length}</strong>
+                        <span className="text-[#3D3531]">Applications:</span>{' '}
+                        <strong className="text-[#231F20]">{propApps.length}</strong>
                       </div>
                       <div>
-                        <span className="text-[#2E7D74]">Eligible:</span>{' '}
-                        <strong className="text-[#2E7D74]">{eligibleCount}</strong>
+                        <span className="text-[#4A6B32]">Eligible:</span>{' '}
+                        <strong className="text-[#4A6B32]">{eligibleCount}</strong>
                       </div>
                     </div>
 
                     {/* ZK Requirements Pill */}
-                    <div className="text-[11px] font-mono text-[#8794AD] space-y-0.5 pt-1">
+                    <div className="text-[11px] font-mono text-[#908682] space-y-0.5 pt-1">
                       <div>ZK Income: ≥ ${(property.requirements.minIncome).toLocaleString()} / yr</div>
                       <div>Background: {property.requirements.requireBackground ? 'Required' : 'Optional'}</div>
                     </div>
@@ -117,13 +117,13 @@ export default function LandlordPropertiesPage() {
                 <div className="p-5 pt-0 grid grid-cols-2 gap-2 font-mono text-xs">
                   <Link
                     href={`/landlord/properties/${property.id}/requirements`}
-                    className="py-2 text-center rounded bg-[#EDECE4] text-[#14213D] hover:bg-[#14213D]/10 border border-[#14213D]/10"
+                    className="py-2 text-center rounded bg-[#E5E0D8] text-[#231F20] hover:bg-[#231F20]/10 border border-[#231F20]/10"
                   >
                     ZK Rules
                   </Link>
                   <Link
                     href={`/landlord/properties/${property.id}`}
-                    className="py-2 text-center rounded bg-[#14213D] text-white font-bold hover:bg-[#1E2F54]"
+                    className="py-2 text-center rounded bg-[#231F20] text-white font-bold hover:bg-[#3D3531]"
                   >
                     Manage →
                   </Link>

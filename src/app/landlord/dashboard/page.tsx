@@ -14,11 +14,11 @@ export default async function LandlordDashboard() {
 
   return (
     <main className="p-8 max-w-4xl mx-auto">
-      <h1 className="font-serif text-3xl font-bold text-[#14213D] mb-2">
+      <h1 className="font-serif text-3xl font-bold text-[#231F20] mb-2">
         Welcome, {session.user.name || session.user.email}
       </h1>
-      <p className="font-mono text-sm text-[#4B5A79]">
-        Role: <span className="font-bold text-[#AE8B3F]">{session.user.role}</span>
+      <p className="font-mono text-sm text-[#3D3531]">
+        Role: <span className="font-bold text-[#B86A36]">{session.user.role}</span>
       </p>
     </main>
   );
