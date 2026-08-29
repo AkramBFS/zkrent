@@ -55,9 +55,9 @@ export default function EditRequirementsPage() {
     );
   }
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updatePropertyRequirements(property.id, {
+    await updatePropertyRequirements(property.id, {
       minIncome,
       requireBackground,
       requireEmployment,
@@ -68,6 +68,7 @@ export default function EditRequirementsPage() {
       router.push(`/landlord/properties/${property.id}`);
     }, 800);
   };
+
 
   return (
     <div className="min-h-screen bg-[#EDECE4] py-8">

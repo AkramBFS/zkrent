@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Property, Application, UserProfile, ZkProofDetails, PropertyRequirements } from '@/types';
+import { defaultVerifier } from '@/lib/verification';
 
 interface ZkRentContextType {
   properties: Property[];
@@ -9,13 +10,16 @@ interface ZkRentContextType {
   currentUser: UserProfile;
   activeRole: 'tenant' | 'landlord';
   setActiveRole: (role: 'tenant' | 'landlord') => void;
+  isLoading: boolean;
   getProperty: (id: string) => Property | undefined;
   getApplication: (id: string) => Application | undefined;
-  addProperty: (prop: Omit<Property, 'id' | 'createdAt' | 'landlordId' | 'landlordName'>) => Property;
-  updateProperty: (id: string, updates: Partial<Property>) => void;
-  updatePropertyRequirements: (id: string, requirements: PropertyRequirements) => void;
-  createApplication: (propertyId: string) => Application;
-  payApplicationFee: (applicationId: string) => Application;
+  fetchProperties: () => Promise<void>;
+  fetchApplications: () => Promise<void>;
+  addProperty: (prop: Omit<Property, 'id' | 'createdAt' | 'landlordId' | 'landlordName'>) => Promise<Property>;
+  updateProperty: (id: string, updates: Partial<Property>) => Promise<void>;
+  updatePropertyRequirements: (id: string, requirements: PropertyRequirements) => Promise<void>;
+  createApplication: (propertyId: string) => Promise<Application>;
+  payApplicationFee: (applicationId: string) => Promise<Application>;
   submitVerificationProof: (
     applicationId: string,
     credentials: {
@@ -23,379 +27,17 @@ interface ZkRentContextType {
       backgroundVerified: boolean;
       employmentVerified: boolean;
     }
-  ) => { application: Application; isEligible: boolean; proof: ZkProofDetails };
-  requestReveal: (applicationId: string) => void;
-  grantRevealConsent: (applicationId: string) => void;
-  declineRevealConsent: (applicationId: string) => void;
-  resetDemoData: () => void;
+  ) => Promise<{ application: Application; isEligible: boolean; proof: ZkProofDetails }>;
+  requestReveal: (applicationId: string) => Promise<void>;
+  grantRevealConsent: (applicationId: string) => Promise<void>;
+  declineRevealConsent: (applicationId: string) => Promise<void>;
+  resetDemoData: () => Promise<void>;
 }
 
-const INITIAL_PROPERTIES: Property[] = [
-  {
-    id: 'prop-1',
-    title: 'The Ashton Highrise #14B',
-    address: '101 Colorado St, Unit 14B',
-    city: 'Austin',
-    state: 'TX',
-    zip: '78701',
-    price: 2400,
-    beds: 2,
-    baths: 2,
-    sqft: 1150,
-    type: 'Apartment',
-    description:
-      'Stunning 14th floor corner residence featuring floor-to-ceiling glass, Italian kitchen cabinetry with quartz waterfall island, engineered hardwood flooring, and panoramic skyline views over Lady Bird Lake.',
-    images: [
-      'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1200&q=80',
-    ],
-    amenities: [
-      'Concierge & 24/7 Security',
-      'Infinity Edge Sky Pool',
-      'Midnight ZK Application Ready',
-      'Reserved EV Parking',
-      'Fitness & Wellness Center',
-      'Pet Spa & Run',
-    ],
-    landlordId: 'landlord-1',
-    landlordName: 'Highline Property Management',
-    status: 'active',
-    createdAt: '2026-08-15T10:00:00Z',
-    requirements: {
-      minIncome: 75000,
-      requireBackground: true,
-      requireEmployment: true,
-      verificationFee: 5.0,
-    },
-  },
-  {
-    id: 'prop-2',
-    title: 'Rainey St Modern Loft',
-    address: '70 Rainey St, Suite 804',
-    city: 'Austin',
-    state: 'TX',
-    zip: '78701',
-    price: 3100,
-    beds: 2,
-    baths: 2.5,
-    sqft: 1320,
-    type: 'Condo',
-    description:
-      'Boutique architectural loft in the heart of the Rainey Historic District. Custom architectural steel accents, Miele appliances, private balcony, and smart home lighting controls.',
-    images: [
-      'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
-    ],
-    amenities: [
-      'Private Terrace',
-      'Smart Thermostat & Keyless Entry',
-      'Rooftop Clubhouse',
-      'Bicycle Storage & Workshop',
-      'Fiber Internet Ready',
-    ],
-    landlordId: 'landlord-1',
-    landlordName: 'Highline Property Management',
-    status: 'active',
-    createdAt: '2026-08-18T14:30:00Z',
-    requirements: {
-      minIncome: 95000,
-      requireBackground: true,
-      requireEmployment: true,
-      verificationFee: 5.0,
-    },
-  },
-  {
-    id: 'prop-3',
-    title: 'South Congress Brownstone Flat',
-    address: '1600 S Congress Ave, #3',
-    city: 'Austin',
-    state: 'TX',
-    zip: '78704',
-    price: 1850,
-    beds: 1,
-    baths: 1,
-    sqft: 780,
-    type: 'Apartment',
-    description:
-      'Charming sunlit flat on iconic South Congress. Exposed brick walls, reclaimed heart pine floors, subway tile bath, and walking distance to cafes, galleries, and live music venues.',
-    images: [
-      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1502005229762-ee152da915ba?auto=format&fit=crop&w=1200&q=80',
-    ],
-    amenities: [
-      'In-unit Washer & Dryer',
-      'Courtyard Garden',
-      'High Ceilings',
-      'Google Fiber',
-      'Off-street Parking',
-    ],
-    landlordId: 'landlord-2',
-    landlordName: 'Capital City Properties',
-    status: 'active',
-    createdAt: '2026-08-20T09:15:00Z',
-    requirements: {
-      minIncome: 58000,
-      requireBackground: true,
-      requireEmployment: false,
-      verificationFee: 5.0,
-    },
-  },
-  {
-    id: 'prop-4',
-    title: 'Lavaca Executive Studio',
-    address: '1100 Lavaca St, Unit 402',
-    city: 'Austin',
-    state: 'TX',
-    zip: '78701',
-    price: 1550,
-    beds: 0,
-    baths: 1,
-    sqft: 550,
-    type: 'Studio',
-    description:
-      'Efficient luxury studio near the Capitol complex. Built-in Murphy bed system, chef kitchen with induction cooktop, oversized walk-in closet, and quiet courtyard facing view.',
-    images: [
-      'https://images.unsplash.com/photo-1536376072261-38c75010e6c9?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1200&q=80',
-    ],
-    amenities: [
-      'Built-in Storage Systems',
-      'Rooftop Lounge',
-      'Coworking Space',
-      'Secure Package Locker',
-    ],
-    landlordId: 'landlord-2',
-    landlordName: 'Capital City Properties',
-    status: 'active',
-    createdAt: '2026-08-22T16:00:00Z',
-    requirements: {
-      minIncome: 50000,
-      requireBackground: true,
-      requireEmployment: true,
-      verificationFee: 5.0,
-    },
-  },
-  {
-    id: 'prop-5',
-    title: 'Zilker Park Contemporary Flat',
-    address: '2200 Barton Springs Rd, Apt 210',
-    city: 'Austin',
-    state: 'TX',
-    zip: '78704',
-    price: 2800,
-    beds: 2,
-    baths: 2,
-    sqft: 1200,
-    type: 'Apartment',
-    description:
-      'Live seconds from Barton Springs pool and Zilker Park. Modern open-concept floor plan, private patio overlooking greenbelt, gas cooking, and spa-grade soaking tub.',
-    images: [
-      'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
-    ],
-    amenities: [
-      'Direct Trail Access',
-      'Kayaking Storage',
-      'Resort Pool',
-      'Outdoor Kitchen & Firepit',
-    ],
-    landlordId: 'landlord-1',
-    landlordName: 'Highline Property Management',
-    status: 'active',
-    createdAt: '2026-08-24T11:20:00Z',
-    requirements: {
-      minIncome: 84000,
-      requireBackground: true,
-      requireEmployment: true,
-      verificationFee: 5.0,
-    },
-  },
-  {
-    id: 'prop-6',
-    title: 'Clarksville Historic Craftsman',
-    address: '1405 W 10th St',
-    city: 'Austin',
-    state: 'TX',
-    zip: '78703',
-    price: 4200,
-    beds: 3,
-    baths: 2.5,
-    sqft: 2100,
-    type: 'House',
-    description:
-      'Impeccably restored 1920s craftsman home with wraparound porch, mature pecan trees, detached studio/office space, and modern commercial-grade Viking kitchen.',
-    images: [
-      'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1200&q=80',
-    ],
-    amenities: [
-      'Fenced Private Yard',
-      'Detached Studio/Office',
-      'Wine Cellar',
-      'Gas Fireplace',
-      '2-Car Garage',
-    ],
-    landlordId: 'landlord-1',
-    landlordName: 'Highline Property Management',
-    status: 'active',
-    createdAt: '2026-08-25T13:45:00Z',
-    requirements: {
-      minIncome: 130000,
-      requireBackground: true,
-      requireEmployment: true,
-      verificationFee: 5.0,
-    },
-  },
-];
-
-const INITIAL_APPLICATIONS: Application[] = [
-  {
-    id: 'app-a81f',
-    applicantDisplayId: '#A81F',
-    propertyId: 'prop-1',
-    propertyTitle: 'The Ashton Highrise #14B',
-    propertyAddress: '101 Colorado St, Unit 14B, Austin, TX',
-    propertyPrice: 2400,
-    tenantId: 'tenant-1',
-    tenantName: 'Elena Rostova',
-    tenantEmail: 'elena.rostova@example.com',
-    tenantPhone: '+1 (512) 892-4910',
-    status: 'verified_eligible',
-    paymentStatus: 'paid',
-    paymentDate: '2026-08-28T14:20:00Z',
-    paymentTxId: 'ch_3Mzk81F920akL49281a',
-    createdAt: '2026-08-28T14:15:00Z',
-    updatedAt: '2026-08-28T14:25:00Z',
-    verification: {
-      verified: true,
-      eligible: true,
-      verifiedAt: '2026-08-28T14:22:18Z',
-      midnightTxHash: '0x7a8f192bce49102948cba38210f92bfa7c9138402948194827104928104812aa',
-      circuitId: 'mid_zk_v3_eligibility_standard_0x992a',
-      zkProofHash: 'zk_p_98ff02a9411bc4028fa7210e4a901844bca99281729018491829048192801948',
-      blockHeight: 1849204,
-      merkleRoot: '0x38e0192a84919018420e91402849102830198420198402849184029481948201',
-      requirements: {
-        income: { required: 75000, satisfied: true },
-        background: { required: true, satisfied: true },
-        employment: { required: true, satisfied: true },
-      },
-      zkMetrics: {
-        constraints: 38420,
-        provingTimeMs: 1420,
-        circuitSize: '2.4 MB',
-        protocolVersion: 'Midnight Halo2 v1.2',
-      },
-    },
-    revealStatus: 'none',
-  },
-  {
-    id: 'app-92c4',
-    applicantDisplayId: '#92C4',
-    propertyId: 'prop-2',
-    propertyTitle: 'Rainey St Modern Loft',
-    propertyAddress: '70 Rainey St, Suite 804, Austin, TX',
-    propertyPrice: 3100,
-    tenantId: 'tenant-2',
-    tenantName: 'Marcus Vance',
-    tenantEmail: 'marcus.v@example.com',
-    tenantPhone: '+1 (512) 402-9912',
-    status: 'verified_eligible',
-    paymentStatus: 'paid',
-    paymentDate: '2026-08-27T11:00:00Z',
-    paymentTxId: 'ch_3Mzk92C420akL77123b',
-    createdAt: '2026-08-27T10:45:00Z',
-    updatedAt: '2026-08-28T16:00:00Z',
-    verification: {
-      verified: true,
-      eligible: true,
-      verifiedAt: '2026-08-27T11:05:42Z',
-      midnightTxHash: '0x92c4819204810294810481204810481204819048120481904819048120481204',
-      circuitId: 'mid_zk_v3_eligibility_standard_0x992a',
-      zkProofHash: 'zk_p_4810284019284019284019284019284019284019284019284019284019284019',
-      blockHeight: 1848910,
-      merkleRoot: '0x7182940182940182940182940182940182940182940182940182940182940182',
-      requirements: {
-        income: { required: 95000, satisfied: true },
-        background: { required: true, satisfied: true },
-        employment: { required: true, satisfied: true },
-      },
-      zkMetrics: {
-        constraints: 38420,
-        provingTimeMs: 1530,
-        circuitSize: '2.4 MB',
-        protocolVersion: 'Midnight Halo2 v1.2',
-      },
-    },
-    revealStatus: 'requested',
-    revealRequestedAt: '2026-08-28T16:00:00Z',
-  },
-  {
-    id: 'app-7b12',
-    applicantDisplayId: '#7B12',
-    propertyId: 'prop-1',
-    propertyTitle: 'The Ashton Highrise #14B',
-    propertyAddress: '101 Colorado St, Unit 14B, Austin, TX',
-    propertyPrice: 2400,
-    tenantId: 'tenant-3',
-    tenantName: 'David Sterling',
-    tenantEmail: 'd.sterling@example.com',
-    tenantPhone: '+1 (512) 330-8192',
-    status: 'pending_verification',
-    paymentStatus: 'paid',
-    paymentDate: '2026-08-28T18:30:00Z',
-    paymentTxId: 'ch_3Mzk7B1220akL99381c',
-    createdAt: '2026-08-28T18:25:00Z',
-    updatedAt: '2026-08-28T18:30:00Z',
-    revealStatus: 'none',
-  },
-  {
-    id: 'app-3d90',
-    applicantDisplayId: '#3D90',
-    propertyId: 'prop-3',
-    propertyTitle: 'South Congress Brownstone Flat',
-    propertyAddress: '1600 S Congress Ave, #3, Austin, TX',
-    propertyPrice: 1850,
-    tenantId: 'tenant-4',
-    tenantName: 'Rachel Green',
-    tenantEmail: 'rachel.g@example.com',
-    tenantPhone: '+1 (512) 555-0192',
-    status: 'verified_ineligible',
-    paymentStatus: 'paid',
-    paymentDate: '2026-08-26T09:00:00Z',
-    paymentTxId: 'ch_3Mzk3D9020akL11284d',
-    createdAt: '2026-08-26T08:50:00Z',
-    updatedAt: '2026-08-26T09:12:00Z',
-    verification: {
-      verified: true,
-      eligible: false,
-      verifiedAt: '2026-08-26T09:10:15Z',
-      midnightTxHash: '0x3d90184029481029481048120481048120481904812048190481904812048120',
-      circuitId: 'mid_zk_v3_eligibility_standard_0x992a',
-      zkProofHash: 'zk_p_3d90284019284019284019284019284019284019284019284019284019284019',
-      blockHeight: 1847102,
-      merkleRoot: '0x1029481029481029481029481029481029481029481029481029481029481029',
-      requirements: {
-        income: { required: 58000, satisfied: false },
-        background: { required: true, satisfied: true },
-        employment: { required: false, satisfied: true },
-      },
-      zkMetrics: {
-        constraints: 38420,
-        provingTimeMs: 1390,
-        circuitSize: '2.4 MB',
-        protocolVersion: 'Midnight Halo2 v1.2',
-      },
-    },
-    revealStatus: 'none',
-  },
-];
-
 const DEFAULT_USER: UserProfile = {
-  id: 'tenant-1',
+  id: 'tenant-user',
   name: 'Elena Rostova',
-  email: 'elena.rostova@example.com',
+  email: 'tenant@example.com',
   phone: '+1 (512) 892-4910',
   role: 'tenant',
   walletConnected: true,
@@ -406,130 +48,189 @@ const DEFAULT_USER: UserProfile = {
 const ZkRentContext = createContext<ZkRentContextType | undefined>(undefined);
 
 export function ZkRentProvider({ children }: { children: React.ReactNode }) {
-  const [properties, setProperties] = useState<Property[]>(INITIAL_PROPERTIES);
-  const [applications, setApplications] = useState<Application[]>(INITIAL_APPLICATIONS);
-  const [currentUser] = useState<UserProfile>(DEFAULT_USER);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [currentUser, setCurrentUser] = useState<UserProfile>(DEFAULT_USER);
   const [activeRole, setActiveRole] = useState<'tenant' | 'landlord'>('tenant');
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load from localStorage if present
-  useEffect(() => {
+  // Fetch properties from PostgreSQL API
+  const fetchProperties = useCallback(async () => {
     try {
-      const savedProps = localStorage.getItem('zkrent_properties_v2');
-      const savedApps = localStorage.getItem('zkrent_applications_v2');
-      const savedRole = localStorage.getItem('zkrent_active_role_v2');
-
-      if (savedProps) setProperties(JSON.parse(savedProps));
-      if (savedApps) setApplications(JSON.parse(savedApps));
-      if (savedRole && (savedRole === 'tenant' || savedRole === 'landlord')) {
-        setActiveRole(savedRole);
+      const res = await fetch('/api/properties');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.properties) {
+          setProperties(data.properties);
+        }
       }
     } catch (e) {
-      console.error('Error loading state from storage:', e);
-    } finally {
-      setIsLoaded(true);
+      console.error('Error fetching properties from API:', e);
     }
   }, []);
 
-  // Save to localStorage
-  useEffect(() => {
-    if (!isLoaded) return;
+  // Fetch applications from PostgreSQL API
+  const fetchApplications = useCallback(async () => {
     try {
-      localStorage.setItem('zkrent_properties_v2', JSON.stringify(properties));
-      localStorage.setItem('zkrent_applications_v2', JSON.stringify(applications));
-      localStorage.setItem('zkrent_active_role_v2', activeRole);
+      const res = await fetch('/api/applications');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.applications) {
+          setApplications(data.applications);
+        }
+      }
     } catch (e) {
-      console.error('Error saving state:', e);
+      console.error('Error fetching applications from API:', e);
     }
-  }, [properties, applications, activeRole, isLoaded]);
+  }, []);
+
+  // Fetch session to set current user
+  const fetchSessionUser = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/session');
+      if (res.ok) {
+        const session = await res.json();
+        if (session?.user) {
+          setCurrentUser({
+            id: session.user.id,
+            name: session.user.name || (session.user.role === 'LANDLORD' ? 'Property Manager' : 'Elena Rostova'),
+            email: session.user.email,
+            phone: '+1 (512) 892-4910',
+            role: session.user.role === 'LANDLORD' ? 'landlord' : 'tenant',
+            walletConnected: true,
+            midnightAddress: 'mn_addr1q8f2940182948102948102948102948102948102948102948102948102948',
+            createdAt: '2026-08-01T00:00:00Z',
+          });
+          setActiveRole(session.user.role === 'LANDLORD' ? 'landlord' : 'tenant');
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching session user:', e);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    const loadAll = async () => {
+      setIsLoading(true);
+      await Promise.all([fetchSessionUser(), fetchProperties(), fetchApplications()]);
+      setIsLoading(false);
+    };
+    loadAll();
+  }, [fetchSessionUser, fetchProperties, fetchApplications]);
 
   const getProperty = (id: string) => properties.find((p) => p.id === id);
   const getApplication = (id: string) => applications.find((a) => a.id === id);
 
-  const addProperty = (propData: Omit<Property, 'id' | 'createdAt' | 'landlordId' | 'landlordName'>) => {
-    const newId = `prop-${Date.now()}`;
-    const newProperty: Property = {
-      ...propData,
-      id: newId,
-      landlordId: 'landlord-1',
-      landlordName: 'Highline Property Management',
-      status: 'active',
-      createdAt: new Date().toISOString(),
-    };
-    setProperties((prev) => [newProperty, ...prev]);
-    return newProperty;
+  const addProperty = async (propData: Omit<Property, 'id' | 'createdAt' | 'landlordId' | 'landlordName'>) => {
+    try {
+      const res = await fetch('/api/properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(propData),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to create property');
+      }
+
+      const data = await res.json();
+      const newProperty = data.property;
+
+      setProperties((prev) => [newProperty, ...prev.filter((p) => p.id !== newProperty.id)]);
+      return newProperty;
+    } catch (error) {
+      console.error('Error adding property:', error);
+      throw error;
+    }
   };
 
-  const updateProperty = (id: string, updates: Partial<Property>) => {
-    setProperties((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updates } : p))
-    );
+  const updateProperty = async (id: string, updates: Partial<Property>) => {
+    try {
+      const res = await fetch(`/api/properties/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setProperties((prev) => prev.map((p) => (p.id === id ? { ...p, ...data.property } : p)));
+      }
+    } catch (error) {
+      console.error('Error updating property:', error);
+    }
   };
 
-  const updatePropertyRequirements = (id: string, requirements: PropertyRequirements) => {
-    setProperties((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, requirements: { ...p.requirements, ...requirements } } : p))
-    );
+  const updatePropertyRequirements = async (id: string, requirements: PropertyRequirements) => {
+    try {
+      const res = await fetch(`/api/properties/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requirements),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setProperties((prev) => prev.map((p) => (p.id === id ? { ...p, ...data.property } : p)));
+      }
+    } catch (error) {
+      console.error('Error updating property requirements:', error);
+    }
   };
 
-  const createApplication = (propertyId: string): Application => {
-    const property = properties.find((p) => p.id === propertyId);
-    if (!property) throw new Error('Property not found');
+  const createApplication = async (propertyId: string): Promise<Application> => {
+    try {
+      const res = await fetch('/api/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propertyId }),
+      });
 
-    // Check if an existing unpaid/in-progress application exists
-    const existing = applications.find(
-      (a) => a.propertyId === propertyId && a.tenantId === currentUser.id
-    );
-    if (existing) return existing;
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to create application');
+      }
 
-    const randomHex = Math.floor(1000 + Math.random() * 9000).toString(16).toUpperCase();
-    const applicantDisplayId = `#A${randomHex.slice(0, 3)}`;
-    const newId = `app-${Date.now()}`;
+      const data = await res.json();
+      const app = data.application;
 
-    const newApp: Application = {
-      id: newId,
-      applicantDisplayId,
-      propertyId: property.id,
-      propertyTitle: property.title,
-      propertyAddress: `${property.address}, ${property.city}, ${property.state}`,
-      propertyPrice: property.price,
-      tenantId: currentUser.id,
-      tenantName: currentUser.name,
-      tenantEmail: currentUser.email,
-      tenantPhone: currentUser.phone,
-      status: 'pending_payment',
-      paymentStatus: 'unpaid',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      revealStatus: 'none',
-    };
-
-    setApplications((prev) => [newApp, ...prev]);
-    return newApp;
+      setApplications((prev) => [app, ...prev.filter((a) => a.id !== app.id)]);
+      return app;
+    } catch (error) {
+      console.error('Error creating application:', error);
+      throw error;
+    }
   };
 
-  const payApplicationFee = (applicationId: string): Application => {
-    let updatedApp: Application | undefined;
-    setApplications((prev) =>
-      prev.map((app) => {
-        if (app.id === applicationId) {
-          updatedApp = {
-            ...app,
-            paymentStatus: 'paid',
-            paymentDate: new Date().toISOString(),
-            paymentTxId: `ch_3Mzk${Math.random().toString(36).substring(2, 9)}`,
-            status: app.status === 'pending_payment' ? 'pending_verification' : app.status,
-            updatedAt: new Date().toISOString(),
-          };
-          return updatedApp;
-        }
-        return app;
-      })
-    );
-    return updatedApp || applications.find((a) => a.id === applicationId)!;
+  const payApplicationFee = async (applicationId: string): Promise<Application> => {
+    const app = applications.find((a) => a.id === applicationId);
+    const propId = app?.propertyId;
+
+    try {
+      const res = await fetch('/api/payments/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId,
+          propertyId: propId,
+          simulate: true,
+        }),
+      });
+
+      if (res.ok) {
+        await fetchApplications();
+      }
+    } catch (error) {
+      console.error('Error paying fee:', error);
+    }
+
+    const updated = applications.find((a) => a.id === applicationId);
+    return updated || (app as Application);
   };
 
-  const submitVerificationProof = (
+  const submitVerificationProof = async (
     applicationId: string,
     credentials: {
       income: number;
@@ -540,117 +241,113 @@ export function ZkRentProvider({ children }: { children: React.ReactNode }) {
     const app = applications.find((a) => a.id === applicationId);
     const prop = app ? properties.find((p) => p.id === app.propertyId) : undefined;
 
-    const minRequiredIncome = prop?.requirements.minIncome ?? 75000;
-    const bgRequired = prop?.requirements.requireBackground ?? true;
-    const empRequired = prop?.requirements.requireEmployment ?? true;
-
-    const incomeSatisfied = credentials.income >= minRequiredIncome;
-    const bgSatisfied = !bgRequired || credentials.backgroundVerified;
-    const empSatisfied = !empRequired || credentials.employmentVerified;
-
-    const isEligible = incomeSatisfied && bgSatisfied && empSatisfied;
-
-    const proofHash = `zk_p_${Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
-    const midnightTx = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
-    const merkleRoot = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')}`;
-
-    const proofDetails: ZkProofDetails = {
-      verified: true,
-      eligible: isEligible,
-      verifiedAt: new Date().toISOString(),
-      midnightTxHash: midnightTx,
-      circuitId: 'mid_zk_v3_eligibility_standard_0x992a',
-      zkProofHash: proofHash,
-      blockHeight: 1849000 + Math.floor(Math.random() * 500),
-      merkleRoot,
-      requirements: {
-        income: { required: minRequiredIncome, satisfied: incomeSatisfied },
-        background: { required: bgRequired, satisfied: bgSatisfied },
-        employment: { required: empRequired, satisfied: empSatisfied },
-      },
-      zkMetrics: {
-        constraints: 38420,
-        provingTimeMs: 1450 + Math.floor(Math.random() * 200),
-        circuitSize: '2.4 MB',
-        protocolVersion: 'Midnight Halo2 v1.2',
-      },
+    const rules = {
+      minIncome: prop?.requirements.minIncome ?? 75000,
+      requireBackground: prop?.requirements.requireBackground ?? true,
+      requireEmployment: prop?.requirements.requireEmployment ?? true,
+      verificationFee: prop?.requirements.verificationFee ?? 5.0,
     };
 
-    let updatedApplication: Application | undefined;
+    // 1. Evaluate locally on-device in browser memory via verifier
+    const proofResult = await defaultVerifier.verify(rules, credentials);
+
+    // 2. Submit ONLY cryptographic proof details to server (NO raw income/background data)
+    try {
+      const res = await fetch('/api/verifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId,
+          isEligible: proofResult.isEligible,
+          proofHash: proofResult.zkProofHash,
+          midnightTx: proofResult.midnightTxHash,
+          circuitId: proofResult.circuitId,
+          merkleRoot: proofResult.merkleRoot,
+          blockHeight: proofResult.blockHeight,
+          provingTimeMs: proofResult.provingTimeMs,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        console.error('Verification recording error:', err);
+      }
+
+      await fetchApplications();
+    } catch (e) {
+      console.error('Error submitting verification:', e);
+    }
+
+    const updatedApp: Application = {
+      ...(app || ({} as Application)),
+      status: proofResult.isEligible ? 'verified_eligible' : 'verified_ineligible',
+      verification: proofResult,
+      updatedAt: new Date().toISOString(),
+    };
 
     setApplications((prev) =>
-      prev.map((a) => {
-        if (a.id === applicationId) {
-          updatedApplication = {
-            ...a,
-            status: isEligible ? 'verified_eligible' : 'verified_ineligible',
-            verification: proofDetails,
-            updatedAt: new Date().toISOString(),
-          };
-          return updatedApplication;
-        }
-        return a;
-      })
+      prev.map((a) => (a.id === applicationId ? updatedApp : a))
     );
 
     return {
-      application: updatedApplication || app!,
-      isEligible,
-      proof: proofDetails,
+      application: updatedApp,
+      isEligible: proofResult.isEligible,
+      proof: proofResult,
     };
   };
 
-  const requestReveal = (applicationId: string) => {
-    setApplications((prev) =>
-      prev.map((app) =>
-        app.id === applicationId
-          ? {
-              ...app,
-              revealStatus: 'requested',
-              revealRequestedAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            }
-          : app
-      )
-    );
-  };
-
-  const grantRevealConsent = (applicationId: string) => {
-    setApplications((prev) =>
-      prev.map((app) =>
-        app.id === applicationId
-          ? {
-              ...app,
-              revealStatus: 'granted',
-              revealGrantedAt: new Date().toISOString(),
-              status: 'lease_offered',
-              updatedAt: new Date().toISOString(),
-            }
-          : app
-      )
-    );
-  };
-
-  const declineRevealConsent = (applicationId: string) => {
-    setApplications((prev) =>
-      prev.map((app) =>
-        app.id === applicationId
-          ? {
-              ...app,
-              revealStatus: 'declined',
-              updatedAt: new Date().toISOString(),
-            }
-          : app
-      )
-    );
-  };
-
-  const resetDemoData = () => {
-    setProperties(INITIAL_PROPERTIES);
-    setApplications(INITIAL_APPLICATIONS);
+  const requestReveal = async (applicationId: string) => {
     try {
-      localStorage.removeItem('zkrent_properties_v2');
-      localStorage.removeItem('zkrent_applications_v2');
+      const res = await fetch(`/api/applications/${applicationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ revealStatus: 'REQUESTED' }),
+      });
+
+      if (res.ok) {
+        await fetchApplications();
+      }
+    } catch (e) {
+      console.error('Error requesting reveal:', e);
+    }
+  };
+
+  const grantRevealConsent = async (applicationId: string) => {
+    try {
+      const res = await fetch(`/api/applications/${applicationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ revealStatus: 'GRANTED' }),
+      });
+
+      if (res.ok) {
+        await fetchApplications();
+      }
+    } catch (e) {
+      console.error('Error granting reveal consent:', e);
+    }
+  };
+
+  const declineRevealConsent = async (applicationId: string) => {
+    try {
+      const res = await fetch(`/api/applications/${applicationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ revealStatus: 'DECLINED' }),
+      });
+
+      if (res.ok) {
+        await fetchApplications();
+      }
+    } catch (e) {
+      console.error('Error declining reveal consent:', e);
+    }
+  };
+
+  const resetDemoData = async () => {
+    try {
+      localStorage.clear();
+      await Promise.all([fetchProperties(), fetchApplications()]);
     } catch (e) {
       console.error(e);
     }
@@ -664,8 +361,11 @@ export function ZkRentProvider({ children }: { children: React.ReactNode }) {
         currentUser,
         activeRole,
         setActiveRole,
+        isLoading,
         getProperty,
         getApplication,
+        fetchProperties,
+        fetchApplications,
         addProperty,
         updateProperty,
         updatePropertyRequirements,
@@ -690,3 +390,4 @@ export function useZkRent() {
   }
   return context;
 }
+
