@@ -4,16 +4,19 @@ import React from 'react';
 import Link from 'next/link';
 import { ShieldCheck, Sparkles, ExternalLink, RotateCcw } from 'lucide-react';
 import { useZkRent } from '@/context/ZkRentContext';
+import { motion, useReducedMotion } from 'framer-motion';
+import { FadeIn, StaggerContainer, StaggerItem, LUXURY_EASE } from '@/components/motion/motion';
 
 export function Footer() {
   const { resetDemoData } = useZkRent();
+  const prefersReduced = useReducedMotion();
 
   return (
-    <footer className="bg-[#231F20] text-[#E5E0D8] border-t border-[#B86A36]/30 pt-14 pb-10">
+    <footer className="bg-[#231F20] text-[#E5E0D8] border-t border-[#B86A36]/30 pt-14 pb-10 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-10 pb-12 border-b border-white/10">
+        <StaggerContainer className="grid grid-cols-1 md:grid-cols-5 gap-10 pb-12 border-b border-white/10">
           {/* Brand Col */}
-          <div className="md:col-span-2 space-y-4">
+          <StaggerItem className="md:col-span-2 space-y-4">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded bg-[#231F20] border border-[#B86A36]/40 flex items-center justify-center text-[#B86A36]">
                 <ShieldCheck className="w-5 h-5" />
@@ -30,10 +33,10 @@ export function Footer() {
               <Sparkles className="w-3.5 h-3.5" />
               <span>Midnight Network Halo2 Verification Engine</span>
             </div>
-          </div>
+          </StaggerItem>
 
           {/* Marketplace Col */}
-          <div>
+          <StaggerItem>
             <h4 className="font-serif font-semibold text-white text-sm tracking-wider uppercase mb-3 text-[#B86A36]">
               Marketplace
             </h4>
@@ -64,10 +67,10 @@ export function Footer() {
                 </Link>
               </li>
             </ul>
-          </div>
+          </StaggerItem>
 
           {/* Tenant Col */}
-          <div>
+          <StaggerItem>
             <h4 className="font-serif font-semibold text-white text-sm tracking-wider uppercase mb-3 text-[#00A8E8]">
               Tenants
             </h4>
@@ -93,10 +96,10 @@ export function Footer() {
                 </Link>
               </li>
             </ul>
-          </div>
+          </StaggerItem>
 
           {/* Landlords Col */}
-          <div>
+          <StaggerItem>
             <h4 className="font-serif font-semibold text-white text-sm tracking-wider uppercase mb-3 text-[#B86A36]">
               Landlords
             </h4>
@@ -127,28 +130,30 @@ export function Footer() {
                 </Link>
               </li>
             </ul>
-          </div>
-        </div>
+          </StaggerItem>
+        </StaggerContainer>
 
         {/* Bottom bar */}
-        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-[#908682] gap-4">
+        <FadeIn delay={0.2} className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-[#908682] gap-4">
           <div className="flex items-center gap-4">
             <span>© 2026 ZkRent Protocol. Zero Raw Documents Stored.</span>
             <span>•</span>
-            <button
+            <motion.button
+              whileHover={prefersReduced ? undefined : { scale: 1.05 }}
+              whileTap={prefersReduced ? undefined : { scale: 0.95 }}
               onClick={resetDemoData}
-              className="text-[#B86A36] hover:underline inline-flex items-center gap-1 font-mono"
+              className="text-[#B86A36] hover:underline inline-flex items-center gap-1 font-mono cursor-pointer"
             >
               <RotateCcw className="w-3 h-3" />
               <span>Reset Demo State</span>
-            </button>
+            </motion.button>
           </div>
 
           <div className="flex items-center gap-6 font-mono text-[11px]">
             <span className="text-[#00A8E8]">Midnight Testnet v1.2</span>
             <span>Cryptographic Privacy Guaranteed</span>
           </div>
-        </div>
+        </FadeIn>
       </div>
     </footer>
   );
