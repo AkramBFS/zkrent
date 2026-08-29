@@ -6,7 +6,7 @@ ZkRent is a privacy-first rental application platform powered by **Midnight Netw
 
 Traditional rental applications require tenants to disclose sensitive financial and employment information to landlords—often including income, employment records, and background-check information.
 
-This creates catastrophic identity theft risk for tenants and massive legal liability for property owners who are forced to become custodians of sensitive personally identifiable information (PII)
+This creates catastrophic identity theft risk for tenants **AND** massive legal liability for property owners who are forced to become custodians of sensitive personally identifiable information (PII)
 
 **ZkRent changes what the landlord receives.**
 
