@@ -79,35 +79,39 @@ export default function CreatePropertyPage() {
     setAmenities(amenities.filter((_, i) => i !== idx));
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     setIsPublishing(true);
-    const newProp = addProperty({
-      title,
-      description,
-      address,
-      city,
-      state,
-      zip,
-      type: propertyType,
-      price,
-      beds,
-      baths,
-      sqft,
-      images: [selectedImage],
-      amenities,
-      status: 'active',
-      requirements: {
-        minIncome,
-        requireBackground,
-        requireEmployment,
-        verificationFee,
-      },
-    });
+    try {
+      const newProp = await addProperty({
+        title,
+        description,
+        address,
+        city,
+        state,
+        zip,
+        type: propertyType,
+        price,
+        beds,
+        baths,
+        sqft,
+        images: [selectedImage],
+        amenities,
+        status: 'active',
+        requirements: {
+          minIncome,
+          requireBackground,
+          requireEmployment,
+          verificationFee,
+        },
+      });
 
-    setTimeout(() => {
       router.push(`/landlord/properties/${newProp.id}`);
-    }, 600);
+    } catch (err) {
+      console.error('Failed to create property:', err);
+      setIsPublishing(false);
+    }
   };
+
 
   return (
     <div className="min-h-screen bg-[#EDECE4] py-8">

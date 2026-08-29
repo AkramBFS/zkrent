@@ -52,17 +52,22 @@ export default function PropertyDetailsPage() {
     );
   }
 
-  const handleApply = () => {
+  const handleApply = async () => {
     setIsApplying(true);
     setActiveRole('tenant');
-    const newApp = createApplication(property.id);
-    // If already paid, go to verify, otherwise payment
-    if (newApp.paymentStatus === 'paid') {
-      router.push(`/tenant/applications/${newApp.id}/verify`);
-    } else {
-      router.push(`/tenant/applications/${newApp.id}/payment`);
+    try {
+      const newApp = await createApplication(property.id);
+      if (newApp.paymentStatus === 'paid') {
+        router.push(`/tenant/applications/${newApp.id}/verify`);
+      } else {
+        router.push(`/tenant/applications/${newApp.id}/payment`);
+      }
+    } catch (err) {
+      console.error('Failed to create application:', err);
+      router.push(`/login?callbackUrl=/properties/${property.id}`);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[#EDECE4] py-8">

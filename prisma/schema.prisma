@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
@@ -12,15 +7,39 @@ datasource db {
   provider = "postgresql"
 }
 
-model Application {
-  id            String   @id @default(uuid())
-  tenantId      String
-  propertyId    String
-  paymentStatus String   @default("PENDING")
-  createdAt     DateTime @default(now())
 enum UserRole {
   TENANT
   LANDLORD
+}
+
+enum ApplicationStatus {
+  PENDING_PAYMENT
+  PAYMENT_CONFIRMED
+  VERIFYING
+  ZK_VERIFIED
+  ZK_REJECTED
+  LEASE_OFFERED
+  WITHDRAWN
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+enum RevealStatus {
+  NONE
+  REQUESTED
+  GRANTED
+  DECLINED
 }
 
 model User {
@@ -47,63 +66,109 @@ model User {
 }
 
 model Property {
-  id          String   @id @default(uuid()) @db.Uuid
-  title       String
-  address     String
-  city        String
-  state       String
-  zip         String
-  price       Int
-  beds        Int
-  baths       Float
-  sqft        Int
-  type        String
-  description String
-  status      String   @default("active")
+  id                      String   @id @default(uuid()) @db.Uuid
+  title                   String
+  address                 String
+  city                    String
+  state                   String
+  zip                     String
+  price                   Int
+  beds                    Int
+  baths                   Float
+  sqft                    Int
+  type                    String
+  description             String
+  images                  String[] @default([])
+  amenities               String[] @default([])
+  status                  String   @default("active")
 
-  landlordId  String   @db.Uuid
-  landlord    User     @relation(fields: [landlordId], references: [id])
+  minIncome               Int      @default(75000)
+  requireBackground       Boolean  @default(true)
+  requireEmployment       Boolean  @default(true)
+  verificationFee         Float    @default(5.0)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  landlordId              String   @db.Uuid
+  landlord                User     @relation(fields: [landlordId], references: [id])
 
-  applications Application[]
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  applications            Application[]
 
   @@map("properties")
 }
 
 model Application {
-  id                 String   @id @default(uuid()) @db.Uuid
-  applicantDisplayId String?
+  id                 String             @id @default(uuid()) @db.Uuid
+  applicantDisplayId String
 
-  propertyId         String   @db.Uuid
-  property           Property @relation(fields: [propertyId], references: [id])
+  propertyId         String             @db.Uuid
+  property           Property           @relation(fields: [propertyId], references: [id])
 
-  tenantId           String   @db.Uuid
-  tenant             User     @relation(fields: [tenantId], references: [id])
+  tenantId           String             @db.Uuid
+  tenant             User               @relation(fields: [tenantId], references: [id])
 
-  status             String   @default("pending_payment")
-  paymentStatus      String   @default("unpaid")
+  status             ApplicationStatus  @default(PENDING_PAYMENT)
+  paymentStatus      PaymentStatus      @default(PENDING)
+  verificationStatus VerificationStatus @default(PENDING)
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  revealStatus       RevealStatus       @default(NONE)
+  revealRequestedAt  DateTime?
+  revealGrantedAt    DateTime?
 
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  payments           Payment[]
+  verifications      Verification[]
+
+  @@unique([propertyId, tenantId])
   @@map("applications")
 }
 
 model Payment {
-  id            String   @id @default(uuid()) @db.Uuid
+  id                     String        @id @default(uuid()) @db.Uuid
 
-  userId        String   @db.Uuid
-  user          User     @relation(fields: [userId], references: [id])
+  applicationId          String        @db.Uuid
+  application            Application   @relation(fields: [applicationId], references: [id])
 
-  amount        Float
-  currency      String   @default("USD")
-  status        String   @default("pending")
-  transactionId String?
+  userId                 String        @db.Uuid
+  user                   User          @relation(fields: [userId], references: [id])
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  amount                 Float
+  currency               String        @default("USD")
+  status                 PaymentStatus @default(PENDING)
+
+  stripeSessionId        String?       @unique
+  stripePaymentIntentId  String?
+  transactionId          String?
+
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
   @@map("payments")
+}
+
+model Verification {
+  id            String             @id @default(uuid()) @db.Uuid
+
+  applicationId String             @db.Uuid
+  application   Application        @relation(fields: [applicationId], references: [id])
+
+  status        VerificationStatus @default(PENDING)
+  isEligible    Boolean            @default(false)
+
+  proofHash     String?
+  midnightTx    String?
+  circuitId     String?
+  merkleRoot    String?
+  blockHeight   Int?
+  provingTimeMs Int?
+
+  verifiedAt    DateTime?
+
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@map("verifications")
 }

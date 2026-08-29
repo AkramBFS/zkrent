@@ -46,13 +46,17 @@ export default function ApplicationPaymentPage() {
 
   const fee = property?.requirements.verificationFee ?? 5.0;
 
-  const handlePay = () => {
+  const handlePay = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      payApplicationFee(application.id);
+    try {
+      await payApplicationFee(application.id);
       router.push(`/tenant/applications/${application.id}/verify`);
-    }, 800);
+    } catch (err) {
+      console.error('Payment error:', err);
+      setIsProcessing(false);
+    }
   };
+
 
   return (
     <div className="min-h-screen bg-[#EDECE4] py-10">
