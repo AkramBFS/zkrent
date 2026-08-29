@@ -10,8 +10,8 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@midnight-ntwrk/compact-runtime": "^0.19.0",
-    "@midnight-ntwrk/ledger-v8": "^8.0.3",
+    "@midnight-ntwrk/compact-runtime": "0.19.0",
+    "@midnight-ntwrk/ledger-v8": "8.0.3",
     "@midnight-ntwrk/midnight-js-contracts": "4.0.4",
     "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.0.4",
     "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.0.4",
@@ -40,9 +40,9 @@
     "react-toastify": "^11.1.0",
     "rxjs": "^7.8.2",
     "stripe": "^22.6.0",
+    "tesseract.js": "^7.0.0",
     "testcontainers": "^10.28.0",
     "ws": "^8.18.0",
-    "tesseract.js": "^7.0.0",
     "zod": "^4.5.1"
   },
   "devDependencies": {
