@@ -128,16 +128,16 @@ export default function PropertiesPage() {
 
         {/* Search & Main Filter Bar */}
         <FadeIn delay={0.08} className="bg-[#FAFAFA] p-4 rounded-xl border border-[#E5E0D8] shadow-sm space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
             {/* Search Input */}
-            <div className="md:col-span-6 relative">
-              <Search className="w-4 h-4 text-[#3D3531] absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <div className="md:col-span-6 relative flex items-center">
+              <Search className="w-4 h-4 text-[#3D3531] absolute left-3.5 pointer-events-none" />
               <input
                 type="text"
                 placeholder="Search by city, neighborhood, address, or zip (e.g. Austin, 78701)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-white border border-[#E5E0D8] text-sm text-[#231F20] placeholder-[#908682] focus:outline-none focus:ring-2 focus:ring-[#B86A36] transition-all"
+                className="w-full h-10 pl-10 pr-4 rounded-lg bg-white border border-[#E5E0D8] text-sm text-[#231F20] placeholder-[#908682] focus:outline-none focus:ring-2 focus:ring-[#B86A36] transition-all"
               />
             </div>
 
@@ -146,7 +146,7 @@ export default function PropertiesPage() {
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg bg-white border border-[#E5E0D8] text-sm text-[#231F20] focus:outline-none focus:ring-2 focus:ring-[#B86A36] transition-all"
+                className="w-full h-10 px-3 rounded-lg bg-white border border-[#E5E0D8] text-sm text-[#231F20] focus:outline-none focus:ring-2 focus:ring-[#B86A36] transition-all cursor-pointer"
               >
                 <option value="all">All Property Types</option>
                 <option value="Apartment">Apartment</option>
@@ -161,7 +161,7 @@ export default function PropertiesPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="flex-1 px-3 py-2.5 rounded-lg bg-white border border-[#E5E0D8] text-sm text-[#231F20] focus:outline-none focus:ring-2 focus:ring-[#B86A36] transition-all"
+                className="flex-1 h-10 px-3 rounded-lg bg-white border border-[#E5E0D8] text-sm text-[#231F20] focus:outline-none focus:ring-2 focus:ring-[#B86A36] transition-all cursor-pointer"
               >
                 <option value="recommended">Sort: Recommended</option>
                 <option value="price-asc">Price: Low to High</option>
@@ -173,7 +173,7 @@ export default function PropertiesPage() {
                 whileHover={prefersReduced ? undefined : { scale: 1.02 }}
                 whileTap={prefersReduced ? undefined : { scale: 0.98 }}
                 onClick={() => setFiltersOpen(!filtersOpen)}
-                className={`px-3 py-2.5 rounded-lg border text-sm font-mono flex items-center gap-1.5 transition-colors cursor-pointer ${
+                className={`h-10 px-3 rounded-lg border text-sm font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0 ${
                   filtersOpen
                     ? 'bg-[#231F20] text-white border-[#231F20]'
                     : 'bg-white text-[#231F20] border-[#E5E0D8] hover:bg-[#E5E0D8]'
