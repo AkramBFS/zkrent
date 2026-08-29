@@ -5,97 +5,87 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useZkRent } from '@/context/ZkRentContext';
 import { PropertyType } from '@/types';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { FadeIn, MotionCard, LUXURY_EASE } from '@/components/motion/motion';
 import {
   Building2,
-  CheckCircle2,
+  ShieldCheck,
+  Sparkles,
   ArrowRight,
   ArrowLeft,
-  Sparkles,
-  ShieldCheck,
+  CheckCircle2,
   Plus,
-  Trash2,
-  Image as ImageIcon,
-  DollarSign,
+  X,
   Lock,
 } from 'lucide-react';
 
-const SAMPLE_IMAGE_PRESETS = [
-  'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80',
-  'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80',
-];
-
-export default function CreatePropertyPage() {
+export default function NewPropertyWizardPage() {
   const router = useRouter();
   const { addProperty } = useZkRent();
+  const prefersReduced = useReducedMotion();
 
-  // Wizard Step: 1 = Basic Info, 2 = Photos & Amenities, 3 = ZK Requirements, 4 = Review
+  // Wizard Step (1: Basics, 2: Specs & Details, 3: ZK Requirements, 4: Review & Publish)
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Form States
-  const [title, setTitle] = useState('The Domain Skyloft #2204');
-  const [description, setDescription] = useState(
-    'Modern executive flat featuring 10ft ceilings, wide-plank oak flooring, quartz countertops, stainless steel gas appliances, and private terrace overlooking north Austin.'
-  );
-  const [address, setAddress] = useState('3121 Palm Way, Unit 2204');
+  // Form State
+  const [title, setTitle] = useState('');
+  const [type, setType] = useState<PropertyType>('Apartment');
+  const [price, setPrice] = useState<number>(2400);
+  const [address, setAddress] = useState('');
   const [city, setCity] = useState('Austin');
   const [state, setState] = useState('TX');
-  const [zip, setZip] = useState('78758');
-  const [propertyType, setPropertyType] = useState<PropertyType>('Apartment');
-  const [price, setPrice] = useState<number>(2650);
+  const [zip, setZip] = useState('78701');
   const [beds, setBeds] = useState<number>(2);
   const [baths, setBaths] = useState<number>(2);
-  const [sqft, setSqft] = useState<number>(1180);
-
-  // Photos & Amenities
-  const [selectedImage, setSelectedImage] = useState(SAMPLE_IMAGE_PRESETS[0]);
+  const [sqft, setSqft] = useState<number>(1150);
+  const [description, setDescription] = useState('');
   const [amenities, setAmenities] = useState<string[]>([
-    'Rooftop Pool & Cabana',
-    'Midnight ZK Fast-Track Verification',
+    'In-Unit Washer/Dryer',
+    'Hardwood Floors',
     'Reserved Garage Parking',
-    '24-Hour Fitness Club',
-    'Smart Keyless Entry',
   ]);
   const [newAmenity, setNewAmenity] = useState('');
 
-  // ZK Requirements
-  const [minIncome, setMinIncome] = useState<number>(79500); // ~3x rent
+  // ZK Requirements Form State
+  const [minIncome, setMinIncome] = useState<number>(72000);
   const [requireBackground, setRequireBackground] = useState<boolean>(true);
   const [requireEmployment, setRequireEmployment] = useState<boolean>(true);
   const [verificationFee, setVerificationFee] = useState<number>(5.0);
 
-  const [isPublishing, setIsPublishing] = useState(false);
+  const [imageUrl, setImageUrl] = useState(
+    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80'
+  );
 
-  const handleAddAmenity = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const addAmenity = () => {
     if (newAmenity.trim() && !amenities.includes(newAmenity.trim())) {
       setAmenities([...amenities, newAmenity.trim()]);
       setNewAmenity('');
     }
   };
 
-  const handleRemoveAmenity = (idx: number) => {
-    setAmenities(amenities.filter((_, i) => i !== idx));
+  const removeAmenity = (item: string) => {
+    setAmenities(amenities.filter((a) => a !== item));
   };
 
-  const handlePublish = async () => {
-    setIsPublishing(true);
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
     try {
       const newProp = await addProperty({
         title,
-        description,
+        type,
+        price,
         address,
         city,
         state,
         zip,
-        type: propertyType,
-        price,
         beds,
         baths,
         sqft,
-        images: [selectedImage],
+        description,
         amenities,
+        images: [imageUrl],
         status: 'active',
         requirements: {
           minIncome,
@@ -107,495 +97,481 @@ export default function CreatePropertyPage() {
 
       router.push(`/landlord/properties/${newProp.id}`);
     } catch (err) {
-      console.error('Failed to create property:', err);
-      setIsPublishing(false);
+      console.error('Failed to create listing:', err);
+      setIsSubmitting(false);
     }
   };
 
-
   return (
-    <div className="min-h-screen bg-[#EDECE4] py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8">
-        {/* Back navigation */}
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-[#E5E0D8] py-8 overflow-hidden">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 space-y-8">
+        {/* Navigation & Stepper Header */}
+        <FadeIn className="flex items-center justify-between border-b border-[#231F20]/10 pb-4">
           <Link
             href="/landlord/properties"
-            className="inline-flex items-center gap-1.5 text-xs font-mono text-[#4B5A79] hover:text-[#14213D]"
+            className="inline-flex items-center gap-1.5 text-xs font-mono text-[#3D3531] hover:text-[#231F20] transition-colors group"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Cancel & return to listings</span>
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+            <span>Cancel & return</span>
           </Link>
 
-          <span className="px-3 py-1 rounded bg-[#AE8B3F]/20 text-[#7E642A] text-xs font-mono font-bold border border-[#AE8B3F]/30">
-            Free Landlord Listing
-          </span>
-        </div>
-
-        {/* Wizard Stepper Bar */}
-        <div className="bg-[#F6F5F0] p-4 rounded-xl border border-[#14213D]/15 shadow-sm">
-          <div className="grid grid-cols-4 gap-2 text-center text-xs font-mono">
-            {[
-              { num: 1, label: '1. Basic Info' },
-              { num: 2, label: '2. Photos & Amenities' },
-              { num: 3, label: '3. ZK Requirements' },
-              { num: 4, label: '4. Review & Publish' },
-            ].map((s) => (
-              <button
-                key={s.num}
-                onClick={() => setStep(s.num as any)}
-                className={`py-2 px-1 rounded-lg border transition-all ${
-                  step === s.num
-                    ? 'bg-[#14213D] text-white border-[#14213D] font-bold shadow'
-                    : step > s.num
-                    ? 'bg-[#EDECE4] text-[#14213D] border-[#14213D]/20'
-                    : 'bg-white/50 text-[#8794AD] border-transparent'
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 font-mono text-xs text-[#908682]">
+            <span className={step === 1 ? 'text-[#B86A36] font-bold' : ''}>1. Basics</span>
+            <span>→</span>
+            <span className={step === 2 ? 'text-[#B86A36] font-bold' : ''}>2. Specs</span>
+            <span>→</span>
+            <span className={step === 3 ? 'text-[#B86A36] font-bold' : ''}>3. ZK Rules</span>
+            <span>→</span>
+            <span className={step === 4 ? 'text-[#B86A36] font-bold' : ''}>4. Publish</span>
           </div>
-        </div>
+        </FadeIn>
 
-        {/* ------------------------------------------------------------- */}
-        {/* STEP 1: BASIC INFO */}
-        {/* ------------------------------------------------------------- */}
-        {step === 1 && (
-          <div className="bg-[#F6F5F0] rounded-xl border border-[#14213D]/15 p-6 sm:p-8 space-y-6 shadow-sm">
-            <div>
-              <h2 className="font-serif text-2xl font-bold text-[#14213D]">
-                Step 1: Property Specifications
-              </h2>
-              <p className="text-xs text-[#4B5A79] mt-0.5">
-                Enter address, monthly rent, and core layout specifications.
-              </p>
-            </div>
-
-            <div className="space-y-4 font-mono text-xs">
-              <div>
-                <label className="block text-[#4B5A79] mb-1 font-semibold">Property Title</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D] text-sm"
-                />
+        {/* Wizard Step Card with AnimatePresence */}
+        <AnimatePresence mode="wait">
+          {/* STEP 1: BASICS */}
+          {step === 1 && (
+            <motion.div
+              key="step-1"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 16 }}
+              transition={{ duration: 0.35, ease: LUXURY_EASE }}
+              className="bg-[#FAFAFA] rounded-xl border border-[#E5E0D8] p-6 sm:p-8 space-y-6 shadow-sm"
+            >
+              <div className="space-y-1">
+                <span className="text-xs font-mono text-[#B86A36] font-bold uppercase tracking-wider">
+                  Step 1 of 4: Basic Information
+                </span>
+                <h2 className="font-serif text-2xl font-bold text-[#231F20]">
+                  Property Overview
+                </h2>
+                <p className="text-xs text-[#3D3531]">
+                  Listings are 100% free to publish on ZkRent.
+                </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4 font-mono text-xs">
                 <div>
-                  <label className="block text-[#4B5A79] mb-1 font-semibold">Street Address</label>
+                  <label className="block text-[#3D3531] mb-1 font-semibold">Listing Title</label>
                   <input
                     type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
+                    required
+                    placeholder="e.g. Modern Penthouse with Skyline Views"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-sm text-[#231F20] focus:ring-2 focus:ring-[#B86A36] focus:outline-none"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[#4B5A79] mb-1 font-semibold">City</label>
+                    <label className="block text-[#3D3531] mb-1 font-semibold">Property Type</label>
+                    <select
+                      value={type}
+                      onChange={(e) => setType(e.target.value as PropertyType)}
+                      className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20]"
+                    >
+                      <option value="Apartment">Apartment</option>
+                      <option value="Condo">Condo</option>
+                      <option value="House">House</option>
+                      <option value="Studio">Studio</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[#3D3531] mb-1 font-semibold">Monthly Rent ($ USD)</label>
+                    <input
+                      type="number"
+                      required
+                      value={price}
+                      onChange={(e) => setPrice(parseInt(e.target.value) || 0)}
+                      className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[#3D3531] mb-1 font-semibold">Street Address</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 401 Colorado St #1802"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20]"
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[#3D3531] mb-1 font-semibold">City</label>
                     <input
                       type="text"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
-                      className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
+                      className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[#4B5A79] mb-1 font-semibold">State</label>
+                    <label className="block text-[#3D3531] mb-1 font-semibold">State</label>
                     <input
                       type="text"
                       value={state}
                       onChange={(e) => setState(e.target.value)}
-                      className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
+                      className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[#4B5A79] mb-1 font-semibold">Zip</label>
+                    <label className="block text-[#3D3531] mb-1 font-semibold">Zip Code</label>
                     <input
                       type="text"
                       value={zip}
                       onChange={(e) => setZip(e.target.value)}
-                      className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
+                      className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20]"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-[#4B5A79] mb-1 font-semibold">Property Type</label>
-                  <select
-                    value={propertyType}
-                    onChange={(e) => setPropertyType(e.target.value as any)}
-                    className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
-                  >
-                    <option value="Apartment">Apartment</option>
-                    <option value="Condo">Condo</option>
-                    <option value="House">House</option>
-                    <option value="Studio">Studio</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[#4B5A79] mb-1 font-semibold">Monthly Rent ($)</label>
-                  <input
-                    type="number"
-                    value={price}
-                    onChange={(e) => {
-                      const newPrice = parseInt(e.target.value) || 0;
-                      setPrice(newPrice);
-                      setMinIncome(newPrice * 30); // auto compute ~2.5x - 3x annual income suggestion
-                    }}
-                    className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D] font-bold"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[#4B5A79] mb-1 font-semibold">Bedrooms</label>
-                  <input
-                    type="number"
-                    value={beds}
-                    onChange={(e) => setBeds(parseInt(e.target.value) || 0)}
-                    className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[#4B5A79] mb-1 font-semibold">Bathrooms</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    value={baths}
-                    onChange={(e) => setBaths(parseFloat(e.target.value) || 0)}
-                    className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[#4B5A79] mb-1 font-semibold">Square Footage</label>
-                <input
-                  type="number"
-                  value={sqft}
-                  onChange={(e) => setSqft(parseInt(e.target.value) || 0)}
-                  className="w-full max-w-xs p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[#4B5A79] mb-1 font-semibold">Description</label>
-                <textarea
-                  rows={3}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D] text-xs"
-                />
-              </div>
-            </div>
-
-            <div className="pt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="px-6 py-3 rounded-md bg-[#14213D] text-white font-mono text-xs font-bold hover:bg-[#1E2F54] transition-colors flex items-center gap-2"
-              >
-                <span>Continue to Photos & Amenities</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ------------------------------------------------------------- */}
-        {/* STEP 2: PHOTOS & AMENITIES */}
-        {/* ------------------------------------------------------------- */}
-        {step === 2 && (
-          <div className="bg-[#F6F5F0] rounded-xl border border-[#14213D]/15 p-6 sm:p-8 space-y-6 shadow-sm">
-            <div>
-              <h2 className="font-serif text-2xl font-bold text-[#14213D]">
-                Step 2: Photos & Amenities
-              </h2>
-              <p className="text-xs text-[#4B5A79] mt-0.5">
-                Select high-resolution imagery and list unit features.
-              </p>
-            </div>
-
-            {/* Photo preset picker */}
-            <div className="space-y-3 font-mono text-xs">
-              <label className="block font-semibold text-[#14213D]">Select Cover Photograph Preset</label>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                {SAMPLE_IMAGE_PRESETS.map((img, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => setSelectedImage(img)}
-                    className={`relative h-24 rounded-lg overflow-hidden border-2 transition-all ${
-                      selectedImage === img
-                        ? 'border-[#AE8B3F] scale-105 shadow-md'
-                        : 'border-transparent opacity-60 hover:opacity-100'
-                    }`}
-                  >
-                    <img src={img} alt={`Preset ${idx}`} className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Amenities list & add */}
-            <div className="space-y-3 font-mono text-xs">
-              <label className="block font-semibold text-[#14213D]">Property Amenities</label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="e.g. EV Charging Station, Wine Fridge"
-                  value={newAmenity}
-                  onChange={(e) => setNewAmenity(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddAmenity())}
-                  className="flex-1 p-2.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
-                />
-                <button
+              <div className="pt-2 flex justify-end">
+                <motion.button
+                  whileHover={prefersReduced ? undefined : { scale: 1.02 }}
+                  whileTap={prefersReduced ? undefined : { scale: 0.98 }}
                   type="button"
-                  onClick={handleAddAmenity}
-                  className="px-4 py-2 rounded-lg bg-[#AE8B3F] text-white font-bold"
+                  onClick={() => setStep(2)}
+                  disabled={!title || !address}
+                  className="py-3 px-6 rounded-md bg-[#B86A36] hover:bg-[#A05A2C] text-white font-mono text-xs font-bold transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
-                  + Add
-                </button>
+                  <span>Continue to Specs</span>
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STEP 2: SPECS & AMENITIES */}
+          {step === 2 && (
+            <motion.div
+              key="step-2"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 16 }}
+              transition={{ duration: 0.35, ease: LUXURY_EASE }}
+              className="bg-[#FAFAFA] rounded-xl border border-[#E5E0D8] p-6 sm:p-8 space-y-6 shadow-sm"
+            >
+              <div className="space-y-1">
+                <span className="text-xs font-mono text-[#B86A36] font-bold uppercase tracking-wider">
+                  Step 2 of 4: Unit Specifications
+                </span>
+                <h2 className="font-serif text-2xl font-bold text-[#231F20]">
+                  Layout, Description & Photos
+                </h2>
               </div>
 
-              <div className="flex flex-wrap gap-2 pt-2">
-                {amenities.map((amenity, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-[#14213D]/15 text-[#14213D]"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#2E7D74]" />
-                    <span>{amenity}</span>
+              <div className="space-y-4 font-mono text-xs">
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[#3D3531] mb-1 font-semibold">Bedrooms</label>
+                    <input
+                      type="number"
+                      value={beds}
+                      onChange={(e) => setBeds(parseInt(e.target.value) || 0)}
+                      className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#3D3531] mb-1 font-semibold">Bathrooms</label>
+                    <input
+                      type="number"
+                      step="0.5"
+                      value={baths}
+                      onChange={(e) => setBaths(parseFloat(e.target.value) || 1)}
+                      className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#3D3531] mb-1 font-semibold">Square Feet</label>
+                    <input
+                      type="number"
+                      value={sqft}
+                      onChange={(e) => setSqft(parseInt(e.target.value) || 0)}
+                      className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[#3D3531] mb-1 font-semibold">Property Description</label>
+                  <textarea
+                    rows={4}
+                    placeholder="Describe the unit features, views, neighborhood, and highlights..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20] text-xs font-sans"
+                  />
+                </div>
+
+                {/* Amenities Manager with AnimatePresence */}
+                <div>
+                  <label className="block text-[#3D3531] mb-1 font-semibold">Amenities</label>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      placeholder="Add an amenity (e.g. Balcony, Pool, EV Charger)"
+                      value={newAmenity}
+                      onChange={(e) => setNewAmenity(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addAmenity())}
+                      className="flex-1 p-2 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20]"
+                    />
                     <button
                       type="button"
-                      onClick={() => handleRemoveAmenity(idx)}
-                      className="ml-1 text-red-500 hover:text-red-700"
+                      onClick={addAmenity}
+                      className="px-3 py-2 bg-[#231F20] text-white rounded-lg flex items-center gap-1 cursor-pointer"
                     >
-                      ×
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add</span>
                     </button>
-                  </span>
-                ))}
-              </div>
-            </div>
+                  </div>
 
-            <div className="pt-4 flex justify-between">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="px-5 py-2.5 rounded-md bg-[#EDECE4] text-[#14213D] font-mono text-xs hover:bg-[#14213D]/10"
-              >
-                ← Back
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(3)}
-                className="px-6 py-3 rounded-md bg-[#14213D] text-white font-mono text-xs font-bold hover:bg-[#1E2F54] transition-colors flex items-center gap-2"
-              >
-                <span>Continue to ZK Requirements</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ------------------------------------------------------------- */}
-        {/* STEP 3: ZK ELIGIBILITY REQUIREMENTS */}
-        {/* ------------------------------------------------------------- */}
-        {step === 3 && (
-          <div className="bg-[#F6F5F0] rounded-xl border border-[#14213D]/15 p-6 sm:p-8 space-y-6 shadow-sm">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-[#14213D] text-[#4FB3A5] text-xs font-mono mb-2">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Midnight Circuit Qualification Parameters</span>
-              </div>
-              <h2 className="font-serif text-2xl font-bold text-[#14213D]">
-                Step 3: Define Zero-Knowledge Requirements
-              </h2>
-              <p className="text-xs text-[#4B5A79] mt-0.5">
-                These rules will be encoded into the Midnight verification contract. Applicants must
-                cryptographically prove compliance without exposing raw data.
-              </p>
-            </div>
-
-            <div className="space-y-5 font-mono text-xs">
-              {/* Income threshold */}
-              <div className="p-4 rounded-xl bg-white border border-[#14213D]/15 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="font-bold text-[#14213D] text-sm">
-                    Minimum Annual Income Requirement ($)
-                  </label>
-                  <span className="text-[#2E7D74] font-bold text-base">
-                    ${minIncome.toLocaleString()} / year
-                  </span>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <AnimatePresence>
+                      {amenities.map((a) => (
+                        <motion.span
+                          key={a}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          transition={{ duration: 0.2 }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E5E0D8] text-[#231F20] text-[11px]"
+                        >
+                          <span>{a}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeAmenity(a)}
+                            className="hover:text-red-600 cursor-pointer"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </motion.span>
+                      ))}
+                    </AnimatePresence>
+                  </div>
                 </div>
-                <input
-                  type="range"
-                  min="30000"
-                  max="200000"
-                  step="2500"
-                  value={minIncome}
-                  onChange={(e) => setMinIncome(parseInt(e.target.value))}
-                  className="w-full accent-[#2E7D74]"
-                />
-                <p className="text-[11px] text-[#4B5A79]">
-                  Tenants will prove <code className="text-[#14213D]">Income ≥ ${minIncome.toLocaleString()}</code> without disclosing actual salary.
+
+                <div>
+                  <label className="block text-[#3D3531] mb-1 font-semibold">Photo Image URL</label>
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20]"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-between">
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="py-2.5 px-4 rounded-md border border-[#231F20]/20 text-[#231F20] font-mono text-xs cursor-pointer"
+                >
+                  ← Back
+                </button>
+                <motion.button
+                  whileHover={prefersReduced ? undefined : { scale: 1.02 }}
+                  whileTap={prefersReduced ? undefined : { scale: 0.98 }}
+                  type="button"
+                  onClick={() => setStep(3)}
+                  className="py-3 px-6 rounded-md bg-[#B86A36] hover:bg-[#A05A2C] text-white font-mono text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <span>Define ZK Rules</span>
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STEP 3: ZK REQUIREMENTS (FLAGSHIP STEP) */}
+          {step === 3 && (
+            <motion.div
+              key="step-3"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 16 }}
+              transition={{ duration: 0.35, ease: LUXURY_EASE }}
+              className="bg-[#231F20] text-[#E5E0D8] rounded-xl border border-[#00A8E8]/40 p-6 sm:p-8 space-y-6 shadow-2xl"
+            >
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-[#00A8E8] font-mono text-xs font-bold uppercase">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Step 3 of 4: Zero-Knowledge Verification Parameters</span>
+                </div>
+                <h2 className="font-serif text-2xl font-bold text-white">
+                  Define Qualification Rules
+                </h2>
+                <p className="text-xs text-[#908682]">
+                  These conditions are encoded directly into the Midnight Network smart contract circuit.
+                  You will receive cryptographic &quot;ELIGIBLE&quot; seals without collecting raw tenant files.
                 </p>
               </div>
 
-              {/* Background Requirement */}
-              <div className="p-4 rounded-xl bg-white border border-[#14213D]/15 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-[#14213D] text-sm">
-                    Require Criminal & Eviction Background Check
+              <div className="space-y-5 font-mono text-xs">
+                {/* Min Income */}
+                <div className="p-4 rounded-lg bg-[#231F20] border border-[#00A8E8]/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-white text-sm">
+                      1. Minimum Annual Gross Income Threshold
+                    </label>
+                    <span className="text-[#00A8E8] font-bold text-base">
+                      ${minIncome.toLocaleString()} / year
+                    </span>
                   </div>
-                  <p className="text-[11px] text-[#4B5A79]">
-                    Demands certified clear background registry attestation in proof witness.
+                  <p className="text-[11px] text-[#908682]">
+                    Typically 3x monthly rent (${(price * 36).toLocaleString()}/yr). Applicants prove earnings ≥ this amount in zero-knowledge.
                   </p>
+                  <input
+                    type="range"
+                    min="30000"
+                    max="250000"
+                    step="5000"
+                    value={minIncome}
+                    onChange={(e) => setMinIncome(parseInt(e.target.value))}
+                    className="w-full accent-[#00A8E8] mt-2"
+                  />
                 </div>
-                <input
-                  type="checkbox"
-                  checked={requireBackground}
-                  onChange={(e) => setRequireBackground(e.target.checked)}
-                  className="w-5 h-5 rounded text-[#2E7D74] focus:ring-[#2E7D74]"
-                />
-              </div>
 
-              {/* Employment Requirement */}
-              <div className="p-4 rounded-xl bg-white border border-[#14213D]/15 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-[#14213D] text-sm">
-                    Require Verified Employment Attestation
+                {/* Background Check Requirement */}
+                <div className="p-4 rounded-lg bg-[#231F20] border border-white/10 flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-white text-sm">
+                      2. Criminal & Eviction Background Check
+                    </div>
+                    <div className="text-[11px] text-[#908682]">
+                      Requires verified clear attestation from accredited registry
+                    </div>
                   </div>
-                  <p className="text-[11px] text-[#4B5A79]">
-                    Demands active corporate payroll registry attestation in proof witness.
-                  </p>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={requireBackground}
+                      onChange={(e) => setRequireBackground(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#00A8E8] focus:ring-[#00A8E8]"
+                    />
+                    <span className="text-white font-bold">{requireBackground ? 'Enforced' : 'Disabled'}</span>
+                  </label>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={requireEmployment}
-                  onChange={(e) => setRequireEmployment(e.target.checked)}
-                  className="w-5 h-5 rounded text-[#2E7D74] focus:ring-[#2E7D74]"
-                />
-              </div>
 
-              {/* Verification Fee */}
-              <div className="p-4 rounded-xl bg-[#EDECE4] border border-[#14213D]/10 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-[#14213D]">
-                    Tenant Privacy Verification Fee ($)
+                {/* Employment Verification Requirement */}
+                <div className="p-4 rounded-lg bg-[#231F20] border border-white/10 flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-white text-sm">
+                      3. Active Employment Verification
+                    </div>
+                    <div className="text-[11px] text-[#908682]">
+                      Requires active employment attestation
+                    </div>
                   </div>
-                  <p className="text-[11px] text-[#4B5A79]">
-                    Standard $5.00 covers Midnight Network gas and circuit execution.
-                  </p>
-                </div>
-                <span className="font-bold text-[#14213D] text-base">${verificationFee.toFixed(2)}</span>
-              </div>
-            </div>
-
-            <div className="pt-4 flex justify-between">
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="px-5 py-2.5 rounded-md bg-[#EDECE4] text-[#14213D] font-mono text-xs hover:bg-[#14213D]/10"
-              >
-                ← Back
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(4)}
-                className="px-6 py-3 rounded-md bg-[#14213D] text-white font-mono text-xs font-bold hover:bg-[#1E2F54] transition-colors flex items-center gap-2"
-              >
-                <span>Review & Finalize Listing</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ------------------------------------------------------------- */}
-        {/* STEP 4: REVIEW & PUBLISH */}
-        {/* ------------------------------------------------------------- */}
-        {step === 4 && (
-          <div className="bg-[#F6F5F0] rounded-xl border border-[#14213D]/15 p-6 sm:p-8 space-y-6 shadow-sm">
-            <div>
-              <span className="px-3 py-1 rounded bg-[#AE8B3F]/20 text-[#7E642A] text-xs font-mono font-bold border border-[#AE8B3F]/30 inline-block mb-2">
-                100% Free Landlord Listing
-              </span>
-              <h2 className="font-serif text-2xl font-bold text-[#14213D]">
-                Step 4: Review & Publish Listing
-              </h2>
-              <p className="text-xs text-[#4B5A79] mt-0.5">
-                Confirm your listing details before publishing live to the ZkRent marketplace.
-              </p>
-            </div>
-
-            {/* Summary Card */}
-            <div className="p-5 rounded-xl bg-[#14213D] text-white space-y-4 font-mono text-xs">
-              <div className="flex justify-between items-start pb-3 border-b border-white/10">
-                <div>
-                  <h3 className="font-serif text-xl font-bold text-[#4FB3A5]">{title}</h3>
-                  <p className="text-[#8794AD]">{address}, {city}, {state} {zip}</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-serif font-bold text-[#AE8B3F]">
-                    ${price.toLocaleString()}
-                  </div>
-                  <span className="text-[10px] text-[#8794AD]">/ month</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={requireEmployment}
+                      onChange={(e) => setRequireEmployment(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#00A8E8] focus:ring-[#00A8E8]"
+                    />
+                    <span className="text-white font-bold">{requireEmployment ? 'Enforced' : 'Disabled'}</span>
+                  </label>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 py-2 border-b border-white/10 text-white">
-                <div>{beds === 0 ? 'Studio' : `${beds} Beds`}</div>
-                <div>{baths} Baths</div>
-                <div>{sqft} sq ft</div>
+              <div className="pt-2 flex justify-between">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="py-2.5 px-4 rounded-md bg-[#231F20] border border-white/15 text-white font-mono text-xs hover:bg-white/10 transition-colors cursor-pointer"
+                >
+                  ← Back
+                </button>
+                <motion.button
+                  whileHover={prefersReduced ? undefined : { scale: 1.02 }}
+                  whileTap={prefersReduced ? undefined : { scale: 0.98 }}
+                  type="button"
+                  onClick={() => setStep(4)}
+                  className="py-3 px-6 rounded-md bg-[#00A8E8] hover:bg-[#0277BD] text-[#231F20] font-mono text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <span>Review & Publish</span>
+                  <ArrowRight className="w-4 h-4" />
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STEP 4: REVIEW & PUBLISH */}
+          {step === 4 && (
+            <motion.div
+              key="step-4"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 16 }}
+              transition={{ duration: 0.35, ease: LUXURY_EASE }}
+              className="bg-[#FAFAFA] rounded-xl border border-[#E5E0D8] p-6 sm:p-8 space-y-6 shadow-sm"
+            >
+              <div className="space-y-1">
+                <span className="text-xs font-mono text-[#B86A36] font-bold uppercase tracking-wider">
+                  Step 4 of 4: Final Confirmation
+                </span>
+                <h2 className="font-serif text-2xl font-bold text-[#231F20]">
+                  Ready to Publish Listing
+                </h2>
+                <p className="text-xs text-[#3D3531]">
+                  Your property will appear in the marketplace with upfront ZK qualification rules.
+                </p>
               </div>
 
-              <div className="space-y-1.5 pt-1">
-                <span className="text-[#4FB3A5] font-bold">Midnight ZK Qualification Rules:</span>
-                <div className="text-xs text-[#8794AD] space-y-1">
-                  <div>✓ Annual Income ≥ ${minIncome.toLocaleString()}</div>
-                  <div>✓ Background Check: {requireBackground ? 'Required' : 'Optional'}</div>
-                  <div>✓ Employment Attestation: {requireEmployment ? 'Required' : 'Optional'}</div>
-                  <div>✓ Tenant Verification Fee: ${verificationFee.toFixed(2)}</div>
+              {/* Review Summary */}
+              <div className="p-4 rounded-lg bg-[#E5E0D8] space-y-3 font-mono text-xs text-[#231F20]">
+                <div className="flex justify-between pb-2 border-b border-[#231F20]/10">
+                  <span className="font-bold text-sm">{title}</span>
+                  <span className="font-bold text-sm">${price.toLocaleString()} / mo</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div>Type: <strong>{type}</strong></div>
+                  <div>Location: <strong>{address}, {city}</strong></div>
+                  <div>Layout: <strong>{beds} Bed • {baths} Bath • {sqft} sqft</strong></div>
+                  <div>Fee: <strong>${verificationFee.toFixed(2)}</strong></div>
+                </div>
+
+                <div className="pt-2 border-t border-[#231F20]/10 space-y-1">
+                  <div className="text-[11px] font-bold text-[#4A6B32]">Midnight ZK Rules Enforced:</div>
+                  <div>• Minimum Income: ≥ ${minIncome.toLocaleString()} / yr</div>
+                  <div>• Background Check: {requireBackground ? 'Enforced' : 'None'}</div>
+                  <div>• Employment Check: {requireEmployment ? 'Enforced' : 'None'}</div>
                 </div>
               </div>
-            </div>
 
-            <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-mono flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-700 flex-shrink-0" />
-              <span>
-                Publishing this listing is completely free for landlords. Applicants will pay the $5.00
-                ZK verification fee when applying.
-              </span>
-            </div>
-
-            <div className="pt-4 flex justify-between">
-              <button
-                type="button"
-                onClick={() => setStep(3)}
-                className="px-5 py-2.5 rounded-md bg-[#EDECE4] text-[#14213D] font-mono text-xs hover:bg-[#14213D]/10"
-              >
-                ← Back
-              </button>
-              <button
-                type="button"
-                onClick={handlePublish}
-                disabled={isPublishing}
-                className="px-8 py-3.5 rounded-md bg-[#AE8B3F] hover:bg-[#977732] text-white font-mono text-xs font-bold shadow-lg transition-all flex items-center gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>{isPublishing ? 'Publishing on Midnight...' : 'Publish Property Live (Free)'}</span>
-              </button>
-            </div>
-          </div>
-        )}
+              <div className="pt-2 flex justify-between">
+                <button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  className="py-2.5 px-4 rounded-md border border-[#231F20]/20 text-[#231F20] font-mono text-xs cursor-pointer"
+                >
+                  ← Back
+                </button>
+                <motion.button
+                  whileHover={prefersReduced ? undefined : { scale: 1.02 }}
+                  whileTap={prefersReduced ? undefined : { scale: 0.98 }}
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="py-3 px-8 rounded-md bg-[#B86A36] hover:bg-[#A05A2C] text-white font-mono text-xs font-bold shadow-lg transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>{isSubmitting ? 'Publishing Listing...' : 'Publish Listing (Free)'}</span>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
