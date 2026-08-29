@@ -10,6 +10,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"] || "postgresql://postgres:password@localhost:5432/zkrent",
+    url: process.env["DIRECT_URL"] || "postgresql://postgres:password@localhost:5432/zkrent",
   },
 });
