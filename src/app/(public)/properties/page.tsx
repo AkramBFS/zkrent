@@ -93,42 +93,42 @@ export default function PropertiesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#EDECE4] py-8">
+    <div className="min-h-screen bg-[#E5E0D8] py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         {/* Header Title */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-[#14213D]/10">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-[#231F20]/10">
           <div>
-            <span className="font-mono text-xs text-[#AE8B3F] font-bold uppercase tracking-widest">
+            <span className="font-mono text-xs text-[#B86A36] font-bold uppercase tracking-widest">
               Marketplace
             </span>
-            <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#14213D] mt-1">
+            <h1 className="font-serif text-3xl sm:text-4xl font-bold text-[#231F20] mt-1">
               Available Rental Properties
             </h1>
-            <p className="text-sm text-[#4B5A79] mt-1">
+            <p className="text-sm text-[#3D3531] mt-1">
               Every listing displays verified Zero-Knowledge eligibility rules upfront before you apply.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-xs font-mono text-[#4B5A79]">
-              Showing <strong className="text-[#14213D]">{filteredProperties.length}</strong> of{' '}
+            <span className="text-xs font-mono text-[#3D3531]">
+              Showing <strong className="text-[#231F20]">{filteredProperties.length}</strong> of{' '}
               {properties.length} properties
             </span>
           </div>
         </div>
 
         {/* Search & Main Filter Bar */}
-        <div className="bg-[#F6F5F0] p-4 rounded-xl border border-[#14213D]/15 shadow-sm space-y-4">
+        <div className="bg-[#FAFAFA] p-4 rounded-xl border border-[#E5E0D8] shadow-sm space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
             {/* Search Input */}
             <div className="md:col-span-6 relative">
-              <Search className="w-4 h-4 text-[#4B5A79] absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-[#3D3531] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search by city, neighborhood, address, or zip (e.g. Austin, 78701)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-white border border-[#14213D]/15 text-sm text-[#14213D] placeholder-[#8794AD] focus:outline-none focus:ring-2 focus:ring-[#AE8B3F]"
+                className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-white border border-[#E5E0D8] text-sm text-[#231F20] placeholder-[#908682] focus:outline-none focus:ring-2 focus:ring-[#B86A36]"
               />
             </div>
 
@@ -137,7 +137,7 @@ export default function PropertiesPage() {
               <select
                 value={selectedType}
                 onChange={(e) => setSelectedType(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg bg-white border border-[#14213D]/15 text-sm text-[#14213D] focus:outline-none focus:ring-2 focus:ring-[#AE8B3F]"
+                className="w-full px-3 py-2.5 rounded-lg bg-white border border-[#E5E0D8] text-sm text-[#231F20] focus:outline-none focus:ring-2 focus:ring-[#B86A36]"
               >
                 <option value="all">All Property Types</option>
                 <option value="Apartment">Apartment</option>
@@ -152,7 +152,7 @@ export default function PropertiesPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="flex-1 px-3 py-2.5 rounded-lg bg-white border border-[#14213D]/15 text-sm text-[#14213D] focus:outline-none focus:ring-2 focus:ring-[#AE8B3F]"
+                className="flex-1 px-3 py-2.5 rounded-lg bg-white border border-[#E5E0D8] text-sm text-[#231F20] focus:outline-none focus:ring-2 focus:ring-[#B86A36]"
               >
                 <option value="recommended">Sort: Recommended</option>
                 <option value="price-asc">Price: Low to High</option>
@@ -164,12 +164,12 @@ export default function PropertiesPage() {
                 onClick={() => setFiltersOpen(!filtersOpen)}
                 className={`px-3 py-2.5 rounded-lg border text-sm font-mono flex items-center gap-1.5 transition-colors ${
                   filtersOpen
-                    ? 'bg-[#14213D] text-white border-[#14213D]'
-                    : 'bg-white text-[#14213D] border-[#14213D]/15 hover:bg-[#EDECE4]'
+                    ? 'bg-[#231F20] text-white border-[#231F20]'
+                    : 'bg-white text-[#231F20] border-[#E5E0D8] hover:bg-[#E5E0D8]'
                 }`}
                 title="Toggle ZK Filters"
               >
-                <SlidersHorizontal className="w-4 h-4 text-[#AE8B3F]" />
+                <SlidersHorizontal className="w-4 h-4 text-[#B86A36]" />
                 <span className="hidden sm:inline">ZK Filters</span>
               </button>
             </div>
@@ -177,11 +177,11 @@ export default function PropertiesPage() {
 
           {/* Expandable ZK Filters Panel */}
           {filtersOpen && (
-            <div className="pt-4 border-t border-[#14213D]/10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono text-[#14213D]">
+            <div className="pt-4 border-t border-[#231F20]/10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-mono text-[#231F20]">
               {/* Max Rent */}
               <div>
                 <label className="block font-semibold mb-1">
-                  Max Monthly Rent: <span className="text-[#AE8B3F] font-bold">${maxRent.toLocaleString()}</span>
+                  Max Monthly Rent: <span className="text-[#B86A36] font-bold">${maxRent.toLocaleString()}</span>
                 </label>
                 <input
                   type="range"
@@ -190,7 +190,7 @@ export default function PropertiesPage() {
                   step="100"
                   value={maxRent}
                   onChange={(e) => setMaxRent(parseInt(e.target.value))}
-                  className="w-full accent-[#AE8B3F]"
+                  className="w-full accent-[#B86A36]"
                 />
               </div>
 
@@ -204,8 +204,8 @@ export default function PropertiesPage() {
                       onClick={() => setSelectedBeds(bed)}
                       className={`flex-1 py-1.5 rounded text-center border uppercase transition-colors ${
                         selectedBeds === bed
-                          ? 'bg-[#14213D] text-white border-[#14213D]'
-                          : 'bg-white text-[#14213D] border-[#14213D]/15 hover:bg-[#EDECE4]'
+                          ? 'bg-[#231F20] text-white border-[#231F20]'
+                          : 'bg-white text-[#231F20] border-[#E5E0D8] hover:bg-[#E5E0D8]'
                       }`}
                     >
                       {bed}
@@ -217,7 +217,7 @@ export default function PropertiesPage() {
               {/* Max ZK Min-Income Threshold */}
               <div>
                 <label className="block font-semibold mb-1">
-                  Max Income Requirement: <span className="text-[#2E7D74] font-bold">≤ ${(maxIncomeReq / 1000).toFixed(0)}k/yr</span>
+                  Max Income Requirement: <span className="text-[#4A6B32] font-bold">≤ ${(maxIncomeReq / 1000).toFixed(0)}k/yr</span>
                 </label>
                 <input
                   type="range"
@@ -226,7 +226,7 @@ export default function PropertiesPage() {
                   step="5000"
                   value={maxIncomeReq}
                   onChange={(e) => setMaxIncomeReq(parseInt(e.target.value))}
-                  className="w-full accent-[#2E7D74]"
+                  className="w-full accent-[#4A6B32]"
                 />
               </div>
 
@@ -238,7 +238,7 @@ export default function PropertiesPage() {
                       type="checkbox"
                       checked={filterRequireBg}
                       onChange={(e) => setFilterRequireBg(e.target.checked)}
-                      className="rounded text-[#2E7D74] focus:ring-[#2E7D74]"
+                      className="rounded text-[#4A6B32] focus:ring-[#4A6B32]"
                     />
                     <span>Requires Background ZK</span>
                   </label>
@@ -247,14 +247,14 @@ export default function PropertiesPage() {
                       type="checkbox"
                       checked={filterRequireEmp}
                       onChange={(e) => setFilterRequireEmp(e.target.checked)}
-                      className="rounded text-[#2E7D74] focus:ring-[#2E7D74]"
+                      className="rounded text-[#4A6B32] focus:ring-[#4A6B32]"
                     />
                     <span>Requires Employment ZK</span>
                   </label>
                 </div>
                 <button
                   onClick={resetFilters}
-                  className="text-[#AE8B3F] hover:underline text-[11px] font-mono flex items-center gap-1 mt-2"
+                  className="text-[#B86A36] hover:underline text-[11px] font-mono flex items-center gap-1 mt-2"
                 >
                   <RotateCcw className="w-3 h-3" />
                   <span>Reset all filters</span>
@@ -266,15 +266,15 @@ export default function PropertiesPage() {
 
         {/* Properties Grid */}
         {filteredProperties.length === 0 ? (
-          <div className="p-12 text-center bg-[#F6F5F0] rounded-xl border border-[#14213D]/15 space-y-3">
-            <ShieldCheck className="w-10 h-10 text-[#8794AD] mx-auto" />
-            <h3 className="font-serif text-xl font-bold text-[#14213D]">No properties match your filter</h3>
-            <p className="text-sm text-[#4B5A79] max-w-md mx-auto">
+          <div className="p-12 text-center bg-[#FAFAFA] rounded-xl border border-[#E5E0D8] space-y-3">
+            <ShieldCheck className="w-10 h-10 text-[#908682] mx-auto" />
+            <h3 className="font-serif text-xl font-bold text-[#231F20]">No properties match your filter</h3>
+            <p className="text-sm text-[#3D3531] max-w-md mx-auto">
               Try adjusting your price range or ZK income qualification thresholds to see more listings.
             </p>
             <button
               onClick={resetFilters}
-              className="px-4 py-2 rounded bg-[#14213D] text-white text-xs font-mono"
+              className="px-4 py-2 rounded bg-[#231F20] text-white text-xs font-mono"
             >
               Reset Filters
             </button>
@@ -284,7 +284,7 @@ export default function PropertiesPage() {
             {filteredProperties.map((property) => (
               <div
                 key={property.id}
-                className="bg-[#F6F5F0] rounded-xl overflow-hidden border border-[#14213D]/15 shadow-sm hover:shadow-md transition-all flex flex-col group"
+                className="bg-[#FAFAFA] rounded-xl overflow-hidden border border-[#E5E0D8] shadow-card transition-all flex flex-col group"
               >
                 {/* Photo */}
                 <div className="relative h-56 w-full overflow-hidden bg-zinc-800">
@@ -294,12 +294,12 @@ export default function PropertiesPage() {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
                   <div className="absolute top-3 left-3">
-                    <span className="px-2.5 py-1 rounded bg-[#14213D]/90 text-[#EDECE4] text-xs font-mono font-medium backdrop-blur-sm border border-white/10">
+                    <span className="px-2.5 py-1 rounded bg-[#231F20]/90 text-[#E5E0D8] text-xs font-mono font-medium backdrop-blur-sm border border-white/10">
                       {property.type}
                     </span>
                   </div>
                   <div className="absolute bottom-3 right-3">
-                    <span className="px-3 py-1 rounded bg-[#14213D] text-[#AE8B3F] font-serif font-bold text-sm shadow">
+                    <span className="px-3 py-1 rounded bg-[#231F20] text-[#B86A36] font-serif font-bold text-sm shadow">
                       ${property.price.toLocaleString()}{' '}
                       <span className="text-xs font-sans text-white/80 font-normal">/month</span>
                     </span>
@@ -309,15 +309,15 @@ export default function PropertiesPage() {
                 {/* Content */}
                 <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
                   <div>
-                    <h3 className="font-serif text-lg font-bold text-[#14213D] group-hover:text-[#AE8B3F] transition-colors">
+                    <h3 className="font-serif text-lg font-bold text-[#231F20] group-hover:text-[#B86A36] transition-colors">
                       {property.title}
                     </h3>
-                    <div className="flex items-center gap-1 text-xs text-[#4B5A79] mt-1">
-                      <MapPin className="w-3.5 h-3.5 text-[#AE8B3F]" />
+                    <div className="flex items-center gap-1 text-xs text-[#3D3531] mt-1">
+                      <MapPin className="w-3.5 h-3.5 text-[#B86A36]" />
                       <span>{property.address}, {property.city}</span>
                     </div>
 
-                    <div className="flex items-center gap-4 text-xs font-mono text-[#4B5A79] mt-3 py-2 border-y border-[#14213D]/10">
+                    <div className="flex items-center gap-4 text-xs font-mono text-[#3D3531] mt-3 py-2 border-y border-[#231F20]/10">
                       <span className="flex items-center gap-1">
                         <Bed className="w-3.5 h-3.5" /> {property.beds === 0 ? 'Studio' : `${property.beds} Bed`}
                       </span>
@@ -331,26 +331,26 @@ export default function PropertiesPage() {
                   </div>
 
                   {/* ZK Requirements Visible Before Applying */}
-                  <div className="p-3.5 rounded-lg bg-[#EDECE4] border border-[#14213D]/10 space-y-2">
-                    <div className="flex items-center justify-between text-[11px] font-mono font-bold text-[#14213D]">
+                  <div className="p-3.5 rounded-lg bg-[#E5E0D8] border border-[#231F20]/10 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-mono font-bold text-[#231F20]">
                       <span className="flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-[#2E7D74]" />
+                        <Sparkles className="w-3 h-3 text-[#4A6B32]" />
                         <span>ZK Qualification Rules:</span>
                       </span>
-                      <span className="text-[#AE8B3F]">${property.requirements.verificationFee.toFixed(2)} Fee</span>
+                      <span className="text-[#B86A36]">${property.requirements.verificationFee.toFixed(2)} Fee</span>
                     </div>
 
-                    <div className="space-y-1 text-xs font-mono text-[#14213D]">
+                    <div className="space-y-1 text-xs font-mono text-[#231F20]">
                       <div className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#2E7D74]" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#4A6B32]" />
                         <span>ZK Income: ≥ ${(property.requirements.minIncome).toLocaleString()} / yr</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#2E7D74]" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#4A6B32]" />
                         <span>Background Check: {property.requirements.requireBackground ? 'Required' : 'Optional'}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#2E7D74]" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#4A6B32]" />
                         <span>Employment Verification: {property.requirements.requireEmployment ? 'Required' : 'Optional'}</span>
                       </div>
                     </div>
@@ -359,7 +359,7 @@ export default function PropertiesPage() {
                   {/* View Property CTA */}
                   <Link
                     href={`/properties/${property.id}`}
-                    className="w-full py-2.5 px-4 rounded-md bg-[#14213D] hover:bg-[#1E2F54] text-white text-center text-sm font-medium transition-colors shadow-sm block"
+                    className="w-full py-2.5 px-4 rounded-md bg-[#00A8E8] hover:bg-[#0277BD] text-white text-center text-sm font-medium transition-colors shadow-sm block"
                   >
                     View Property & Requirements
                   </Link>

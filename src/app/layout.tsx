@@ -1,23 +1,24 @@
 import type { Metadata } from 'next';
-import { Plus_Jakarta_Sans, Playfair_Display, JetBrains_Mono } from 'next/font/google';
+import { Inter, Roboto } from 'next/font/google';
 import './globals.css';
 import { ZkRentProvider } from '@/context/ZkRentContext';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 
-const sansFont = Plus_Jakarta_Sans({
+const sansFont = Inter({
   variable: '--font-body-sans',
   subsets: ['latin'],
   display: 'swap',
 });
 
-const displayFont = Playfair_Display({
+const displayFont = Roboto({
+  weight: ['400', '500', '700', '900'],
   variable: '--font-display-serif',
   subsets: ['latin'],
   display: 'swap',
 });
 
-const monoFont = JetBrains_Mono({
+const monoFont = Inter({
   variable: '--font-data-mono',
   subsets: ['latin'],
   display: 'swap',
@@ -39,7 +40,7 @@ export default function RootLayout({
       lang="en"
       className={`${sansFont.variable} ${displayFont.variable} ${monoFont.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#EDECE4] text-[#14213D]">
+      <body className="min-h-full flex flex-col bg-[#FAFAFA] text-[#231F20]">
         <ZkRentProvider>
           <Navbar />
           <main className="flex-1 flex flex-col">{children}</main>
