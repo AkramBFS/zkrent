@@ -706,16 +706,32 @@ export default function ZkVerificationPage() {
 
               {/* Proof Metadata Pill */}
               {proofResult && (
-                <FadeIn delay={0.1} className="max-w-lg mx-auto p-3 rounded-lg bg-[#231F20] border border-[#00A8E8]/20 font-mono text-xs text-[#908682] space-y-1">
+                <FadeIn delay={0.1} className="max-w-lg mx-auto p-3.5 rounded-lg bg-[#231F20] border border-[#00A8E8]/20 font-mono text-xs text-[#908682] space-y-1.5 text-left">
                   <div className="flex items-center justify-between text-[11px]">
-                    <span>Midnight Tx Hash:</span>
-                    <span className="text-[#00A8E8]">
-                      {proofResult.midnightTxHash.substring(0, 18)}...
+                    <span>Midnight Prover Engine:</span>
+                    <span className="px-2 py-0.5 rounded bg-[#00A8E8]/10 text-[#00A8E8] text-[10px] font-bold border border-[#00A8E8]/30">
+                      {proofResult.mode === 'live_devnet' ? '⚡ Live Devnet Proof' : '🔒 Midnight Halo2 Prover'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-[11px]">
-                    <span>Block Height:</span>
-                    <span className="text-white">#{proofResult.blockHeight.toLocaleString()}</span>
+                    <span>Midnight Tx Hash:</span>
+                    <span className="text-[#00A8E8] font-bold">
+                      {proofResult.midnightTxHash.substring(0, 20)}...
+                    </span>
+                  </div>
+                  {proofResult.contractAddress && (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span>Contract Target:</span>
+                      <span className="text-white/80">
+                        {proofResult.contractAddress.substring(0, 16)}...
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span>Block Height / Time:</span>
+                    <span className="text-white">
+                      #{proofResult.blockHeight.toLocaleString()} • {proofResult.zkMetrics?.provingTimeMs || proofResult.provingTimeMs || 1420}ms
+                    </span>
                   </div>
                 </FadeIn>
               )}

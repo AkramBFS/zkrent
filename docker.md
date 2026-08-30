@@ -1,0 +1,65 @@
+# Latch / MOAT — local Midnight undeployed stack
+# Adapted from midnightntwrk/midnight-local-dev standalone.yml (official).
+# Requires Docker Desktop running. Bind addresses are localhost-only.
+#
+# Full stack (node + indexer + proof server):
+#   npm run local:up
+# Proof server only (e.g. Preprod proving against remote node):
+#   npm run local:proof
+# Tear down:
+#   npm run local:down
+#
+# Containers are project-namespaced by Compose (no fixed container_name) to avoid
+# collisions with other Midnight stacks on the same machine.
+
+services:
+  proof-server:
+    image: midnightntwrk/proof-server:8.0.3
+    command: ['midnight-proof-server', '-v']
+    ports:
+      - '127.0.0.1:6300:6300'
+    environment:
+      RUST_BACKTRACE: 'full'
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://127.0.0.1:6300 >/dev/null || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  indexer:
+    image: midnightntwrk/indexer-standalone:4.0.2
+    ports:
+      - '127.0.0.1:8088:8088'
+    environment:
+      RUST_LOG: 'indexer=info,chain_indexer=info,indexer_api=info,wallet_indexer=info,indexer_common=info,fastrace_opentelemetry=off,info'
+      APP__INFRA__NODE__URL: 'ws://node:9944'
+      APP__APPLICATION__NETWORK_ID: 'undeployed'
+      APP__INFRA__STORAGE__PASSWORD: 'indexer'
+      APP__INFRA__PUB_SUB__PASSWORD: 'indexer'
+      APP__INFRA__LEDGER_STATE_STORAGE__PASSWORD: 'indexer'
+      # Local-dev default only — not a production secret.
+      APP__INFRA__SECRET: '303132333435363738393031323334353637383930313233343536373839303132'
+    healthcheck:
+      test: ['CMD-SHELL', 'cat /var/run/indexer-standalone/running']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    depends_on:
+      node:
+        condition: service_healthy
+
+  node:
+    image: midnightntwrk/midnight-node:0.22.5
+    ports:
+      - '127.0.0.1:9944:9944'
+    environment:
+      CFG_PRESET: 'dev'
+      SIDECHAIN_BLOCK_BENEFICIARY: '04bcf7ad3be7a5c790460be82a713af570f22e0f801f6659ab8e84a52be6969e'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9944/health']
+      interval: 2s
+      timeout: 5s
+      retries: 20
+      start_period: 20s

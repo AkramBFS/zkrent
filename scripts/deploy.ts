@@ -1,270 +1,479 @@
+/**
+ * Deploy the ZkRent Qualification contract to a local Midnight devnet.
+ *
+ * LOCAL DEVNET ONLY — never reuse the genesis seed on Preprod/mainnet.
+ *
+ * Prerequisites:
+ *   1. Docker Desktop running + devnet stack up (node, indexer, proof-server)
+ *   2. Compact contract compiled → contracts/managed/qualification/{contract,keys,zkir}
+ *
+ * Usage (from WSL, at repo root):
+ *   npx tsx scripts/deploy.ts
+ */
+
+import { randomBytes } from 'node:crypto';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+// @ts-ignore — ws module
+import { WebSocket } from 'ws';
+
 import {
   type CoinPublicKey,
   DustSecretKey,
   type EncPublicKey,
   type FinalizedTransaction,
   LedgerParameters,
+  unshieldedToken,
   ZswapSecretKeys,
 } from '@midnight-ntwrk/ledger-v8';
-import {
-  type MidnightProvider,
-  type UnboundTransaction,
-  type WalletProvider,
+
+import type {
+  MidnightProvider,
+  UnboundTransaction,
+  WalletProvider,
 } from '@midnight-ntwrk/midnight-js-types';
-import { ttlOneHour } from '@midnight-ntwrk/midnight-js-utils';
-import { type WalletFacade, type FacadeState } from '@midnight-ntwrk/wallet-sdk-facade';
+
+import type { MidnightProviders } from '@midnight-ntwrk/midnight-js-types';
+
 import {
-  type DustWalletOptions,
-  type EnvironmentConfiguration,
-  FluentWalletBuilder,
-} from '@midnight-ntwrk/testkit-js';
-import * as Rx from 'rxjs';
-import { CompiledContract } from '@midnight-ntwrk/compact-js';
+  WalletFacade as MidnightWalletFacade,
+} from '@midnight-ntwrk/wallet-sdk-facade';
+
+import type { WalletFacade } from '@midnight-ntwrk/wallet-sdk-facade';
+
+import { DustWallet } from '@midnight-ntwrk/wallet-sdk-dust-wallet';
+import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
+
+import { InMemoryTransactionHistoryStorage } from '@midnight-ntwrk/wallet-sdk-abstractions';
+import {
+  createKeystore,
+  PublicKey,
+  UnshieldedWallet,
+  type UnshieldedKeystore,
+} from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
+
+import { WalletSeeds } from '@midnight-ntwrk/testkit-js';
+
+import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
 import { deployContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
-import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
-import type { MidnightProviders } from '@midnight-ntwrk/midnight-js-types';
 import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
+import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
+
 import { Contract } from '../contracts/managed/qualification/contract/index.js';
-import pino from 'pino';
-import fs from 'fs';
-import path from 'path';
+
 import dotenv from 'dotenv';
+
+/* -------------------------------------------------------------------------- */
+/* Setup                                                                      */
+/* -------------------------------------------------------------------------- */
 
 dotenv.config({ path: '.env.local' });
 
-const logger = pino({ level: 'info', transport: { target: 'pino-pretty' } });
+// Midnight wallet SDK requires globalThis.WebSocket in Node.
+(globalThis as { WebSocket?: unknown }).WebSocket ??= WebSocket;
 
-const MIN_INCOME_REQ = 50000n;
+/* -------------------------------------------------------------------------- */
+/* Constants                                                                  */
+/* -------------------------------------------------------------------------- */
 
-class MidnightWalletProvider implements MidnightProvider, WalletProvider {
-  readonly wallet: WalletFacade;
+const NETWORK = 'undeployed';
 
-  private constructor(
-    private readonly logger: pino.Logger,
-    wallet: WalletFacade,
-    private readonly zswapSecretKeys: ZswapSecretKeys,
-    private readonly dustSecretKey: DustSecretKey,
-  ) {
-    this.wallet = wallet;
+const ENDPOINTS = {
+  node: process.env.MIDNIGHT_NODE_URL ?? 'http://127.0.0.1:9944',
+  nodeWs: process.env.MIDNIGHT_NODE_WS_URL ?? 'ws://127.0.0.1:9944',
+  indexer: process.env.MIDNIGHT_INDEXER_URL ?? 'http://127.0.0.1:8088/api/v4/graphql',
+  indexerWs: process.env.MIDNIGHT_INDEXER_WS_URL ?? 'ws://127.0.0.1:8088/api/v4/graphql/ws',
+  proofServer: process.env.MIDNIGHT_PROOF_SERVER_URL ?? 'http://127.0.0.1:6300',
+};
+
+/** Qualification contract constructor arg — minimum annual income. */
+const MIN_INCOME_REQ = BigInt(process.env.MIDNIGHT_MIN_INCOME_REQ ?? '50000');
+
+const PRIVATE_STATE_ID = 'qualification-deploy';
+const PRIVATE_STATE_PASSWORD =
+  process.env.MIDNIGHT_PRIVATE_STATE_PASSWORD?.trim() ||
+  'Local-Devnet-Development-Placeholder-1';
+
+const MAX_DEPLOY_RETRIES = 12;
+const DEPLOY_RETRY_DELAY_MS = 5_000;
+const DUST_WAIT_TIMEOUT_MS = 5 * 60_000;
+
+const ZK_CONFIG_PATH = resolve(process.cwd(), 'contracts/managed/qualification');
+
+/* -------------------------------------------------------------------------- */
+/* Seed                                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The local devnet pre-mints NIGHT to the well-known genesis seed.
+ * Anyone on this stack can spend it — never use on Preprod/mainnet.
+ */
+function getSeed(): string {
+  const existing = process.env.MIDNIGHT_DEPLOY_SEED?.trim();
+  if (existing) {
+    if (!/^[0-9a-fA-F]{64}$/.test(existing)) {
+      throw new Error('MIDNIGHT_DEPLOY_SEED must be exactly 64 hex chars (32 bytes).');
+    }
+    return existing;
   }
 
-  getCoinPublicKey(): CoinPublicKey {
-    return this.zswapSecretKeys.coinPublicKey;
-  }
+  // Well-known genesis seed for local devnet (CFG_PRESET=dev).
+  const genesis = '0000000000000000000000000000000000000000000000000000000000000001';
 
-  getEncryptionPublicKey(): EncPublicKey {
-    return this.zswapSecretKeys.encryptionPublicKey;
-  }
+  // Persist so reruns use the same wallet.
+  const envPath = resolve(process.cwd(), '.env.local');
+  const prefix = existsSync(envPath) ? '\n' : '';
+  writeFileSync(
+    envPath,
+    `${prefix}# Midnight local deploy wallet seed\nMIDNIGHT_DEPLOY_SEED="${genesis}"\n`,
+    { flag: 'a', encoding: 'utf8' },
+  );
+  console.log(`  Wrote MIDNIGHT_DEPLOY_SEED to ${envPath}`);
+  return genesis;
+}
 
-  async balanceTx(
-    tx: UnboundTransaction,
-    ttl: Date = ttlOneHour(),
-  ): Promise<FinalizedTransaction> {
-    const recipe = await this.wallet.balanceUnboundTransaction(
-      tx as any,
-      {
-        shieldedSecretKeys: this.zswapSecretKeys,
-        dustSecretKey: this.dustSecretKey,
-      },
-      { ttl },
-    );
-    return await this.wallet.finalizeRecipe(recipe);
-  }
+/* -------------------------------------------------------------------------- */
+/* Service readiness                                                          */
+/* -------------------------------------------------------------------------- */
 
-  submitTx(tx: FinalizedTransaction): Promise<string> {
-    return this.wallet.submitTransaction(tx);
+async function waitForHttp(url: string, label: string, maxAttempts = 40, delayMs = 2000): Promise<void> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await fetch(url, { method: 'GET', signal: AbortSignal.timeout(3_000) });
+      console.log(`  ✓ ${label} reachable`);
+      return;
+    } catch {
+      process.stdout.write(`\r  Waiting for ${label}... (${attempt}/${maxAttempts})   `);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
   }
+  throw new Error(`${label} not reachable at ${url}. Is docker compose up?`);
+}
 
-  async start(): Promise<void> {
-    this.logger.info('Starting wallet...');
-    await this.wallet.start(this.zswapSecretKeys, this.dustSecretKey);
-  }
+/* -------------------------------------------------------------------------- */
+/* Wallet                                                                     */
+/* -------------------------------------------------------------------------- */
 
-  async stop(): Promise<void> {
-    return this.wallet.stop();
-  }
+type WalletContext = {
+  wallet: WalletFacade;
+  keystore: UnshieldedKeystore;
+  zswapSecretKeys: ZswapSecretKeys;
+  dustSecretKey: DustSecretKey;
+};
 
-  static async build(
-    logger: pino.Logger,
-    env: EnvironmentConfiguration,
-    seed: string,
-  ): Promise<MidnightWalletProvider> {
-    const dustOptions: DustWalletOptions = {
+async function createWallet(seedHex: string): Promise<WalletContext> {
+  const seeds = WalletSeeds.fromMasterSeed(seedHex);
+
+  const keystore = createKeystore(seeds.unshielded, NETWORK as never);
+
+  const walletConfig = {
+    indexerClientConnection: {
+      indexerHttpUrl: ENDPOINTS.indexer,
+      indexerWsUrl: ENDPOINTS.indexerWs,
+    },
+    provingServerUrl: new URL(ENDPOINTS.proofServer),
+    networkId: NETWORK,
+    relayURL: new URL(ENDPOINTS.nodeWs),
+    txHistoryStorage: new InMemoryTransactionHistoryStorage(),
+    costParameters: {
+      additionalFeeOverhead: 1_000n,
+      feeBlocksMargin: 5,
+    },
+  };
+
+  const dustConfig = {
+    ...walletConfig,
+    costParameters: {
       ledgerParams: LedgerParameters.initialParameters(),
       additionalFeeOverhead: 1_000n,
       feeBlocksMargin: 5,
-    };
+    },
+  };
 
-    const builder = FluentWalletBuilder.forEnvironment(env).withDustOptions(dustOptions);
+  const wallet = await MidnightWalletFacade.init({
+    configuration: walletConfig as any,
+    shielded: () => ShieldedWallet(walletConfig as any).startWithSeed(seeds.shielded),
+    unshielded: () =>
+      UnshieldedWallet({
+        ...walletConfig,
+        txHistoryStorage: new InMemoryTransactionHistoryStorage(),
+      } as any).startWithPublicKey(PublicKey.fromKeyStore(keystore)),
+    dust: () =>
+      DustWallet(dustConfig as any).startWithSeed(
+        seeds.dust,
+        LedgerParameters.initialParameters().dust,
+      ),
+  });
 
-    const buildResult = await builder.withSeed(seed).buildWithoutStarting();
-    const { wallet, seeds } = buildResult as {
-      wallet: WalletFacade;
-      seeds: {
-        masterSeed: string;
-        shielded: Uint8Array;
-        dust: Uint8Array;
-      };
-    };
+  const zswapSecretKeys = ZswapSecretKeys.fromSeed(seeds.shielded);
+  const dustSecretKey = DustSecretKey.fromSeed(seeds.dust);
 
-    logger.info(`Wallet built from seed: ${seeds.masterSeed.slice(0, 8)}...`);
+  return { wallet, keystore, zswapSecretKeys, dustSecretKey };
+}
 
-    return new MidnightWalletProvider(
-      logger,
-      wallet,
-      ZswapSecretKeys.fromSeed(seeds.shielded),
-      DustSecretKey.fromSeed(seeds.dust),
+/* -------------------------------------------------------------------------- */
+/* Funding — NIGHT + DUST                                                     */
+/* -------------------------------------------------------------------------- */
+
+async function ensureFunds(ctx: WalletContext): Promise<void> {
+  const nightRaw = unshieldedToken().raw;
+
+  // Sync wallet.
+  console.log('  Syncing wallet (may take a minute)...');
+  const state = await ctx.wallet.waitForSyncedState();
+
+  const night = state.unshielded.balances[nightRaw] ?? 0n;
+  const address = ctx.keystore.getBech32Address().toString();
+  console.log(`  Address: ${address}`);
+  console.log(`  NIGHT:   ${night}`);
+
+  if (night === 0n) {
+    throw new Error(
+      'Deploy wallet has 0 NIGHT.\n' +
+      'Ensure your devnet is running with CFG_PRESET=dev\n' +
+      'and the genesis seed matches MIDNIGHT_DEPLOY_SEED.',
     );
   }
-}
 
-function isProgressStrictlyComplete(progress: unknown): boolean {
-  if (!progress || typeof progress !== 'object') return false;
-  const candidate = progress as { isStrictlyComplete?: unknown };
-  if (typeof candidate.isStrictlyComplete !== 'function') return false;
-  return (candidate.isStrictlyComplete as () => boolean)();
-}
-
-async function syncWallet(
-  logger: pino.Logger,
-  wallet: WalletFacade,
-  timeout = 300_000,
-): Promise<FacadeState> {
-  logger.info('Syncing wallet...');
-  let lastStatus = '';
-  let emissionCount = 0;
-  return Rx.firstValueFrom(
-    wallet.state().pipe(
-      Rx.tap((state: FacadeState) => {
-        emissionCount++;
-        const shielded = isProgressStrictlyComplete(state.shielded.state.progress);
-        const unshielded = isProgressStrictlyComplete(state.unshielded.progress);
-        const dust = isProgressStrictlyComplete(state.dust.state.progress);
-        const status = `shielded=${shielded}, unshielded=${unshielded}, dust=${dust}`;
-        if (status !== lastStatus || emissionCount % 50 === 0) {
-          lastStatus = status;
-          logger.info(`Wallet sync [${emissionCount}]: ${status}`);
-        }
-      }),
-      Rx.filter(
-        (state: FacadeState) =>
-          isProgressStrictlyComplete(state.shielded.state.progress) &&
-          isProgressStrictlyComplete(state.dust.state.progress) &&
-          isProgressStrictlyComplete(state.unshielded.progress),
-      ),
-      Rx.tap(() => logger.info(`Wallet sync complete after ${emissionCount} emissions`)),
-      Rx.timeout({
-        each: timeout,
-        with: () =>
-          Rx.throwError(
-            () => new Error(`Wallet sync timeout after ${timeout}ms (${emissionCount} emissions)`),
-          ),
-      }),
-      Rx.catchError((err) => {
-        logger.error(`Wallet sync error: ${err}`);
-        return Rx.throwError(() => err);
-      }),
-    ),
+  // Register NIGHT UTXOs for DUST generation.
+  const unregistered = state.unshielded.availableCoins.filter(
+    (coin: any) => coin.utxo.type === nightRaw && !coin.meta?.registeredForDustGeneration,
   );
+
+  if (unregistered.length > 0) {
+    console.log(`  Registering ${unregistered.length} NIGHT UTXO(s) for DUST...`);
+    const recipe = await ctx.wallet.registerNightUtxosForDustGeneration(
+      unregistered,
+      ctx.keystore.getPublicKey(),
+      (payload: Uint8Array) => ctx.keystore.signData(payload),
+    );
+    const finalized = await ctx.wallet.finalizeRecipe(recipe);
+    await ctx.wallet.submitTransaction(finalized);
+    console.log('  ✓ DUST registration submitted');
+  } else {
+    console.log('  ✓ NIGHT already registered for DUST');
+  }
+
+  // Wait for DUST balance.
+  const dustStart = Date.now();
+  while (Date.now() - dustStart < DUST_WAIT_TIMEOUT_MS) {
+    const s = await ctx.wallet.waitForSyncedState();
+    const dust = s.dust.balance(new Date());
+    if (dust > 0n) {
+      console.log(`  ✓ DUST ready (balance=${dust})`);
+      return;
+    }
+    const elapsed = Math.round((Date.now() - dustStart) / 1000);
+    process.stdout.write(`\r  Waiting for DUST... (${elapsed}s)   `);
+    await new Promise((r) => setTimeout(r, 5_000));
+  }
+
+  throw new Error('DUST did not appear within timeout. Is the devnet healthy?');
 }
 
-function buildProviders(
-  wallet: MidnightWalletProvider,
-  zkConfigPath: string,
-  config: {
-    indexer: string;
-    indexerWS: string;
-    proofServer: string;
-    networkId: string;
-  },
-): MidnightProviders<any> {
-  setNetworkId(config.networkId);
+/* -------------------------------------------------------------------------- */
+/* Wallet provider (bridges WalletFacade → midnight-js WalletProvider)        */
+/* -------------------------------------------------------------------------- */
 
-  const zkConfigProvider = new NodeZkConfigProvider(zkConfigPath);
+function buildWalletProvider(ctx: WalletContext): MidnightProvider & WalletProvider {
+  return {
+    getCoinPublicKey(): CoinPublicKey {
+      return ctx.zswapSecretKeys.coinPublicKey;
+    },
+    getEncryptionPublicKey(): EncPublicKey {
+      return ctx.zswapSecretKeys.encryptionPublicKey;
+    },
+    async balanceTx(tx: UnboundTransaction, ttl?: Date): Promise<FinalizedTransaction> {
+      const recipe = await ctx.wallet.balanceUnboundTransaction(
+        tx as any,
+        { shieldedSecretKeys: ctx.zswapSecretKeys, dustSecretKey: ctx.dustSecretKey },
+        { ttl: ttl ?? new Date(Date.now() + 30 * 60_000) },
+      );
+      return ctx.wallet.finalizeRecipe(recipe);
+    },
+    submitTx(tx: FinalizedTransaction): Promise<string> {
+      return ctx.wallet.submitTransaction(tx);
+    },
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Midnight providers                                                         */
+/* -------------------------------------------------------------------------- */
+
+function buildProviders(walletProvider: MidnightProvider & WalletProvider, accountId: string): MidnightProviders<any> {
+  const zkConfigProvider = new NodeZkConfigProvider(ZK_CONFIG_PATH);
 
   return {
     privateStateProvider: levelPrivateStateProvider({
-      privateStateStoreName: `qualification-deploy-${Date.now()}`,
-      privateStoragePasswordProvider: () => 'deploy-secure-password-2024',
-      accountId: `deploy-${Date.now()}`,
+      privateStateStoreName: PRIVATE_STATE_ID,
+      accountId,
+      privateStoragePasswordProvider: () => PRIVATE_STATE_PASSWORD,
     }),
-    publicDataProvider: indexerPublicDataProvider(config.indexer, config.indexerWS),
+    publicDataProvider: indexerPublicDataProvider(ENDPOINTS.indexer, ENDPOINTS.indexerWs),
     zkConfigProvider,
-    proofProvider: httpClientProofProvider(config.proofServer, zkConfigProvider),
-    walletProvider: wallet,
-    midnightProvider: wallet,
+    proofProvider: httpClientProofProvider(ENDPOINTS.proofServer, zkConfigProvider),
+    walletProvider,
+    midnightProvider: walletProvider,
   };
 }
 
-function updateEnvFile(contractAddress: string) {
-  const envPath = path.resolve(process.cwd(), '.env.local');
-  if (fs.existsSync(envPath)) {
-    let content = fs.readFileSync(envPath, 'utf8');
-    if (content.includes('MIDNIGHT_CONTRACT_ADDRESS=')) {
-      content = content.replace(/MIDNIGHT_CONTRACT_ADDRESS=".*?"/g, `MIDNIGHT_CONTRACT_ADDRESS="${contractAddress}"`);
-      content = content.replace(/MIDNIGHT_CONTRACT_ADDRESS=.*/g, `MIDNIGHT_CONTRACT_ADDRESS="${contractAddress}"`);
-    } else {
-      content += `\nMIDNIGHT_CONTRACT_ADDRESS="${contractAddress}"\n`;
-    }
-    fs.writeFileSync(envPath, content, 'utf8');
-    logger.info(`Updated .env.local with MIDNIGHT_CONTRACT_ADDRESS=${contractAddress}`);
+/* -------------------------------------------------------------------------- */
+/* .env.local updater                                                         */
+/* -------------------------------------------------------------------------- */
+
+function updateEnvFile(contractAddress: string): void {
+  const envPath = resolve(process.cwd(), '.env.local');
+  const line = `MIDNIGHT_CONTRACT_ADDRESS="${contractAddress}"`;
+
+  if (!existsSync(envPath)) {
+    writeFileSync(envPath, `${line}\n`, 'utf8');
+    return;
   }
+
+  let content = readFileSync(envPath, 'utf8');
+  if (content.includes('MIDNIGHT_CONTRACT_ADDRESS=')) {
+    content = content.replace(/MIDNIGHT_CONTRACT_ADDRESS=.*/g, line);
+  } else {
+    content += `\n${line}\n`;
+  }
+  writeFileSync(envPath, content, 'utf8');
 }
 
-async function main() {
-  const network = process.env.MIDNIGHT_NETWORK ?? 'preprod';
+/* -------------------------------------------------------------------------- */
+/* Main                                                                       */
+/* -------------------------------------------------------------------------- */
 
-  const config: EnvironmentConfiguration = {
-    walletNetworkId: network,
-    networkId: network,
-    indexer: process.env.MIDNIGHT_INDEXER_URL ?? 'https://indexer.preprod.midnight.network/api/v4/graphql',
-    indexerWS: process.env.MIDNIGHT_INDEXER_WS_URL ?? 'wss://indexer.preprod.midnight.network/api/v4/graphql/ws',
-    node: process.env.MIDNIGHT_NODE_URL ?? 'https://rpc.preprod.midnight.network',
-    nodeWS: process.env.MIDNIGHT_NODE_WS_URL ?? 'wss://rpc.preprod.midnight.network',
-    faucet: '',
-    proofServer: process.env.MIDNIGHT_PROOF_SERVER_URL ?? 'https://api-preprod.1am.xyz',
-  };
+async function main(): Promise<void> {
+  console.log('\n=== ZkRent Qualification — local devnet deploy ===\n');
 
-  const seed = process.env.MIDNIGHT_DEPLOY_SEED ??
-    '0000000000000000000000000000000000000000000000000000000000000001';
+  setNetworkId(NETWORK);
 
-  const zkConfigPath = path.resolve(process.cwd(), 'contracts/managed/qualification');
+  console.log(`  Network:      ${NETWORK}`);
+  console.log(`  Node:         ${ENDPOINTS.node}`);
+  console.log(`  Indexer:      ${ENDPOINTS.indexer}`);
+  console.log(`  Proof server: ${ENDPOINTS.proofServer}`);
+  console.log(`  minIncomeReq: ${MIN_INCOME_REQ}`);
+  console.log('');
 
-  const wallet = await MidnightWalletProvider.build(logger, config, seed);
-  await wallet.start();
-  await syncWallet(logger, wallet.wallet, 600_000);
+  // ── Verify artifacts ──────────────────────────────────────────────────────
 
-  const providers = buildProviders(wallet, zkConfigPath, {
-    indexer: config.indexer,
-    indexerWS: config.indexerWS,
-    proofServer: config.proofServer,
-    networkId: config.networkId,
-  });
+  const contractPath = resolve(ZK_CONFIG_PATH, 'contract', 'index.js');
+  if (!existsSync(contractPath)) {
+    throw new Error(`Contract not compiled. Missing: ${contractPath}`);
+  }
+  if (!existsSync(resolve(ZK_CONFIG_PATH, 'keys')) || !existsSync(resolve(ZK_CONFIG_PATH, 'zkir'))) {
+    throw new Error(`Missing ZK assets (keys/zkir) in ${ZK_CONFIG_PATH}`);
+  }
 
-  const compiledContract = CompiledContract.make('QualificationContract', Contract as any).pipe(
-    CompiledContract.withVacantWitnesses,
-    CompiledContract.withCompiledFileAssets(zkConfigPath),
-  );
+  // ── Wait for services ─────────────────────────────────────────────────────
 
-  const deployedContract = await deployContract(providers, {
-    compiledContract: compiledContract as any,
-    args: [MIN_INCOME_REQ],
-  });
+  console.log('─── Services ───\n');
+  await waitForHttp(ENDPOINTS.proofServer, 'proof-server');
+  await waitForHttp(ENDPOINTS.node.replace(/\/$/, '') + '/health', 'node');
+  console.log('');
 
-  const contractAddress = deployedContract.deployTxData.public.contractAddress;
-  logger.info(`✅ Deployed! MIDNIGHT_CONTRACT_ADDRESS=${contractAddress}`);
-  console.log(`MIDNIGHT_CONTRACT_ADDRESS=${contractAddress}`);
+  // ── Seed ───────────────────────────────────────────────────────────────────
+
+  const seed = getSeed();
+
+  // ── Compiled contract ──────────────────────────────────────────────────────
+
+  const compiledContract = CompiledContract
+    .make('qualification', Contract as never)
+    .pipe(
+      CompiledContract.withVacantWitnesses,
+      CompiledContract.withCompiledFileAssets(ZK_CONFIG_PATH),
+    );
+
+  // ── Wallet ─────────────────────────────────────────────────────────────────
+
+  console.log('─── Wallet ───\n');
+  const ctx = await createWallet(seed);
+
+  console.log('  Starting wallet...');
+  await ctx.wallet.start(ctx.zswapSecretKeys, ctx.dustSecretKey);
+  console.log('  ✓ Wallet started\n');
+
+  // ── Fund ───────────────────────────────────────────────────────────────────
+
+  console.log('─── Funding ───\n');
+  await ensureFunds(ctx);
+  console.log('');
+
+  // Small delay for freshly generated DUST to become spendable.
+  console.log('  Allowing DUST to settle (6s)...');
+  await new Promise((r) => setTimeout(r, 6_000));
+  console.log('');
+
+  // ── Providers ──────────────────────────────────────────────────────────────
+
+  const address = ctx.keystore.getBech32Address().toString();
+  const walletProvider = buildWalletProvider(ctx);
+  const providers = buildProviders(walletProvider, address);
+
+  // ── Deploy ─────────────────────────────────────────────────────────────────
+
+  console.log('─── Deploy ───\n');
+  console.log(`  Deploying QualificationContract (minIncomeReq=${MIN_INCOME_REQ})...`);
+
+  let deployed: any;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= MAX_DEPLOY_RETRIES; attempt++) {
+    try {
+      console.log(`  Attempt ${attempt}/${MAX_DEPLOY_RETRIES}...`);
+      deployed = await deployContract(
+        providers,
+        {
+          compiledContract,
+          args: [MIN_INCOME_REQ],
+          privateStateId: PRIVATE_STATE_ID,
+          initialPrivateState: {},
+        } as never,
+      );
+      break;
+    } catch (err: any) {
+      lastError = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.toLowerCase().includes('dust') || msg.includes('Not enough')) {
+        console.log(`  ⏳ DUST not ready yet — retrying in ${DEPLOY_RETRY_DELAY_MS / 1000}s...`);
+        await new Promise((r) => setTimeout(r, DEPLOY_RETRY_DELAY_MS));
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  if (!deployed) {
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  const contractAddress = deployed.deployTxData.public.contractAddress;
+
+  // ── Persist ────────────────────────────────────────────────────────────────
 
   updateEnvFile(contractAddress);
 
-  await wallet.stop();
-  process.exit(0);
+  console.log('\n✅ Deployed successfully!');
+  console.log(`   MIDNIGHT_CONTRACT_ADDRESS=${contractAddress}`);
+  console.log('   Updated .env.local');
+  console.log('');
+
+  // ── Cleanup ────────────────────────────────────────────────────────────────
+
+  try {
+    await ctx.wallet.stop();
+  } catch {
+    // Wallet stop can fail on forced shutdown; non-fatal.
+  }
 }
 
 main().catch((err) => {
-  logger.error(err);
+  console.error('\n❌ Deploy failed:', err);
   process.exit(1);
 });
