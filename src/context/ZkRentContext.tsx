@@ -248,39 +248,45 @@ export function ZkRentProvider({ children }: { children: React.ReactNode }) {
       verificationFee: prop?.requirements.verificationFee ?? 5.0,
     };
 
-    // 1. Evaluate locally on-device in browser memory via verifier
-    const proofResult = await defaultVerifier.verify(rules, credentials);
+    let proofResult: ZkProofDetails;
+    let isEligible = false;
 
-    // 2. Submit ONLY cryptographic proof details to server (NO raw income/background data)
     try {
-      const res = await fetch('/api/verifications', {
+      // 1. Synthesize Zero-Knowledge Proof via Midnight Prover Endpoint
+      const res = await fetch('/api/verifications/prove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           applicationId,
-          isEligible: proofResult.isEligible,
-          proofHash: proofResult.zkProofHash,
-          midnightTx: proofResult.midnightTxHash,
-          circuitId: proofResult.circuitId,
-          merkleRoot: proofResult.merkleRoot,
-          blockHeight: proofResult.blockHeight,
-          provingTimeMs: proofResult.provingTimeMs,
+          credentials: {
+            income: credentials.income,
+            backgroundVerified: credentials.backgroundVerified,
+            employmentVerified: credentials.employmentVerified,
+          },
         }),
       });
 
-      if (!res.ok) {
-        const err = await res.json();
-        console.error('Verification recording error:', err);
+      if (res.ok) {
+        const data = await res.json();
+        proofResult = data.proof;
+        isEligible = data.isEligible;
+      } else {
+        // Fallback to local client verifier if server route errors
+        console.warn('Server prover returned status:', res.status, 'Falling back to client verifier');
+        proofResult = await defaultVerifier.verify(rules, credentials);
+        isEligible = proofResult.eligible;
       }
 
       await fetchApplications();
     } catch (e) {
-      console.error('Error submitting verification:', e);
+      console.error('Error in proof pipeline, using client verifier:', e);
+      proofResult = await defaultVerifier.verify(rules, credentials);
+      isEligible = proofResult.eligible;
     }
 
     const updatedApp: Application = {
       ...(app || ({} as Application)),
-      status: proofResult.isEligible ? 'verified_eligible' : 'verified_ineligible',
+      status: isEligible ? 'verified_eligible' : 'verified_ineligible',
       verification: proofResult,
       updatedAt: new Date().toISOString(),
     };
@@ -291,7 +297,7 @@ export function ZkRentProvider({ children }: { children: React.ReactNode }) {
 
     return {
       application: updatedApp,
-      isEligible: proofResult.isEligible,
+      isEligible,
       proof: proofResult,
     };
   };

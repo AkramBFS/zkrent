@@ -45,6 +45,8 @@ export interface ZkProofDetails {
   zkProofHash: string;
   blockHeight: number;
   merkleRoot: string;
+  contractAddress?: string;
+  mode?: 'live_devnet' | 'sandbox_simulation';
   requirements: {
     income: { required: number; satisfied: boolean };
     background: { required: boolean; satisfied: boolean };

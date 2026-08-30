@@ -45,9 +45,9 @@ import type { WalletFacade } from '@midnight-ntwrk/wallet-sdk-facade';
 import { DustWallet } from '@midnight-ntwrk/wallet-sdk-dust-wallet';
 import { ShieldedWallet } from '@midnight-ntwrk/wallet-sdk-shielded';
 
+import { InMemoryTransactionHistoryStorage } from '@midnight-ntwrk/wallet-sdk-abstractions';
 import {
   createKeystore,
-  InMemoryTransactionHistoryStorage,
   PublicKey,
   UnshieldedWallet,
   type UnshieldedKeystore,
@@ -83,10 +83,10 @@ dotenv.config({ path: '.env.local' });
 const NETWORK = 'undeployed';
 
 const ENDPOINTS = {
-  node:        process.env.MIDNIGHT_NODE_URL        ?? 'http://127.0.0.1:9944',
-  nodeWs:      process.env.MIDNIGHT_NODE_WS_URL     ?? 'ws://127.0.0.1:9944',
-  indexer:     process.env.MIDNIGHT_INDEXER_URL      ?? 'http://127.0.0.1:8088/api/v4/graphql',
-  indexerWs:   process.env.MIDNIGHT_INDEXER_WS_URL   ?? 'ws://127.0.0.1:8088/api/v4/graphql/ws',
+  node: process.env.MIDNIGHT_NODE_URL ?? 'http://127.0.0.1:9944',
+  nodeWs: process.env.MIDNIGHT_NODE_WS_URL ?? 'ws://127.0.0.1:9944',
+  indexer: process.env.MIDNIGHT_INDEXER_URL ?? 'http://127.0.0.1:8088/api/v4/graphql',
+  indexerWs: process.env.MIDNIGHT_INDEXER_WS_URL ?? 'ws://127.0.0.1:8088/api/v4/graphql/ws',
   proofServer: process.env.MIDNIGHT_PROOF_SERVER_URL ?? 'http://127.0.0.1:6300',
 };
 

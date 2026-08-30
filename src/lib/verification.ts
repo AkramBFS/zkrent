@@ -1,3 +1,5 @@
+import { executeMidnightQualificationProof } from '@/midnight/zk';
+
 export interface PropertyQualificationRules {
   minIncome: number;
   requireBackground: boolean;
@@ -27,6 +29,8 @@ export interface VerificationResult {
   blockHeight: number;
   merkleRoot: string;
   provingTimeMs: number;
+  contractAddress?: string;
+  mode?: 'live_devnet' | 'sandbox_simulation';
   requirements: {
     income: { required: number; satisfied: boolean };
     background: { required: boolean; satisfied: boolean };
@@ -45,6 +49,56 @@ export interface IVerifier {
     rules: PropertyQualificationRules,
     credentials: TenantPrivateCredentials
   ): Promise<VerificationResult>;
+}
+
+export class MidnightZkVerifier implements IVerifier {
+  async verify(
+    rules: PropertyQualificationRules,
+    credentials: TenantPrivateCredentials
+  ): Promise<VerificationResult> {
+    const result = await executeMidnightQualificationProof(
+      {
+        annualIncome: credentials.income,
+        backgroundClean: credentials.backgroundVerified,
+        employmentVerified: credentials.employmentVerified,
+      },
+      {
+        minIncome: rules.minIncome,
+        requireBackground: rules.requireBackground,
+        requireEmployment: rules.requireEmployment,
+      }
+    );
+
+    return {
+      verified: result.success,
+      isEligible: result.isEligible,
+      eligible: result.isEligible,
+      verifiedAt: new Date().toISOString(),
+      midnightTxHash: result.midnightTxHash,
+      circuitId: result.circuitId,
+      zkProofHash: result.proofHash,
+      blockHeight: result.blockHeight,
+      merkleRoot: result.merkleRoot,
+      provingTimeMs: result.provingTimeMs,
+      contractAddress: result.contractAddress,
+      mode: result.mode,
+      requirements: {
+        income: {
+          required: Number(result.requirements.income.required),
+          satisfied: result.requirements.income.satisfied,
+        },
+        background: {
+          required: Boolean(result.requirements.background.required),
+          satisfied: result.requirements.background.satisfied,
+        },
+        employment: {
+          required: Boolean(result.requirements.employment.required),
+          satisfied: result.requirements.employment.satisfied,
+        },
+      },
+      zkMetrics: result.zkMetrics,
+    };
+  }
 }
 
 export class SimulatedZkVerifier implements IVerifier {
@@ -73,11 +127,12 @@ export class SimulatedZkVerifier implements IVerifier {
       eligible: isEligible,
       verifiedAt: new Date().toISOString(),
       midnightTxHash: midnightTx,
-      circuitId: 'mid_zk_v3_qualification_0x992a',
+      circuitId: 'verifyQualification',
       zkProofHash: proofHash,
       blockHeight,
       merkleRoot,
       provingTimeMs,
+      mode: 'sandbox_simulation',
       requirements: {
         income: { required: rules.minIncome, satisfied: incomeSatisfied },
         background: { required: rules.requireBackground, satisfied: backgroundSatisfied },
@@ -93,4 +148,4 @@ export class SimulatedZkVerifier implements IVerifier {
   }
 }
 
-export const defaultVerifier: IVerifier = new SimulatedZkVerifier();
+export const defaultVerifier: IVerifier = new MidnightZkVerifier();

@@ -113,18 +113,18 @@ export function VerifyReceiptDrawer({
 
                 <div className="p-3 rounded bg-[#231F20] border border-[#00A8E8]/20">
                   <div className="flex items-center justify-between text-xs text-[#908682] mb-1 font-mono">
-                    <span>ZK Circuit Reference</span>
+                    <span>{proof.contractAddress ? 'Midnight Contract Target' : 'ZK Circuit Reference'}</span>
                     <motion.button
                       whileTap={prefersReduced ? undefined : { scale: 0.92 }}
-                      onClick={() => copyToClipboard(proof.circuitId, 'circuit')}
+                      onClick={() => copyToClipboard(proof.contractAddress || proof.circuitId, 'contract')}
                       className="text-[#00A8E8] hover:text-white flex items-center gap-1 cursor-pointer"
                     >
-                      {copiedHash === 'circuit' ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span className="text-[10px]">{copiedHash === 'circuit' ? 'Copied' : 'Copy'}</span>
+                      {copiedHash === 'contract' ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span className="text-[10px]">{copiedHash === 'contract' ? 'Copied' : 'Copy'}</span>
                     </motion.button>
                   </div>
                   <div className="font-mono text-xs text-[#E5E0D8] break-all">
-                    {proof.circuitId}
+                    {proof.contractAddress || proof.circuitId}
                   </div>
                 </div>
               </div>
