@@ -9,6 +9,8 @@
  * 2. Resilient Sandbox Mode: Deterministic cryptographic fallback ensuring zero demo failures.
  */
 
+'use server';
+
 import { resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { createHash, randomBytes } from 'node:crypto';
@@ -153,13 +155,13 @@ async function executeLiveMidnightProof(
   const { createRequire } = await import('node:module');
   const require = createRequire(import.meta.url);
 
-  const { setNetworkId } = require('@midnight-ntwrk/midnight-js-network-id/dist/index.cjs');
-  const { NodeZkConfigProvider } = require('@midnight-ntwrk/midnight-js-node-zk-config-provider/dist/index.cjs');
-  const { httpClientProofProvider } = require('@midnight-ntwrk/midnight-js-http-client-proof-provider/dist/index.cjs');
-  const { indexerPublicDataProvider } = require('@midnight-ntwrk/midnight-js-indexer-public-data-provider/dist/index.cjs');
-  const { levelPrivateStateProvider } = require('@midnight-ntwrk/midnight-js-level-private-state-provider/dist/index.cjs');
+  const { setNetworkId } = require('@midnight-ntwrk/midnight-js-network-id');
+  const { NodeZkConfigProvider } = require('@midnight-ntwrk/midnight-js-node-zk-config-provider');
+  const { httpClientProofProvider } = require('@midnight-ntwrk/midnight-js-http-client-proof-provider');
+  const { indexerPublicDataProvider } = require('@midnight-ntwrk/midnight-js-indexer-public-data-provider');
+  const { levelPrivateStateProvider } = require('@midnight-ntwrk/midnight-js-level-private-state-provider');
   const { CompiledContract } = require('@midnight-ntwrk/midnight-js-protocol/compact-js');
-  const { createUnprovenCallTx } = require('@midnight-ntwrk/midnight-js-contracts/dist/index.cjs');
+  const { createUnprovenCallTx } = require('@midnight-ntwrk/midnight-js-contracts');
   const { CostModel } = require('@midnight-ntwrk/ledger-v8');
   const { WebSocket } = require('ws');
 
