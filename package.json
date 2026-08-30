@@ -18,6 +18,7 @@
     "@midnight-ntwrk/midnight-js-level-private-state-provider": "4.0.4",
     "@midnight-ntwrk/midnight-js-network-id": "4.0.4",
     "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.0.4",
+    "@midnight-ntwrk/midnight-js-protocol": "^4.1.1",
     "@midnight-ntwrk/midnight-js-types": "4.0.4",
     "@midnight-ntwrk/testkit-js": "4.0.4",
     "@midnight-ntwrk/wallet-sdk-facade": "3.0.0",
