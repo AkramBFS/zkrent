@@ -14,6 +14,10 @@ Instead of revealing the underlying data, a tenant generates a privacy-preservin
 
 ---
 
+## LINK TO PREVIEW VIDEO
+
+https://vimeo.com/1222486300?fl=ip&fe=ec
+
 ## 🎯 Executive Overview & Problem Statement
 
 ### The Problem
