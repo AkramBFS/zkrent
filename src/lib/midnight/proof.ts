@@ -1,4 +1,4 @@
-import { CompiledContract } from '@midnight-ntwrk/compact-runtime';
+import { CompiledContract } from '@midnight-ntwrk/compact-js';
 import { deployContract, submitCallTx, createUnprovenCallTx } from '@midnight-ntwrk/midnight-js-contracts';
 import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
@@ -18,7 +18,10 @@ async function getCompiledContract(zkConfigPath: string) {
   if (!compiledContract) {
     const { Contract } = await import('../../../../contracts/managed/qualification/contract/index.js');
     compiledContract = CompiledContract.make('QualificationContract', Contract).pipe(
-      CompiledContract.withVacantWitnesses,
+      CompiledContract.withWitnesses({
+        annualIncome: () => [undefined, 50000n],
+        backgroundClean: () => [undefined, true],
+      } as any),
       CompiledContract.withCompiledFileAssets(zkConfigPath),
     );
   }

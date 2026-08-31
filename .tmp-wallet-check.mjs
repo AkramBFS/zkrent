@@ -1,0 +1,11 @@
+﻿import { MidnightWalletProvider } from './node_modules/@midnight-ntwrk/testkit-js/dist/index.mjs';
+const logger = { info(){}, warn(){}, error(){}, debug(){} };
+const env = { walletNetworkId: 'undeployed', networkId: 'undeployed', indexer: 'http://127.0.0.1:8088/api/v4/graphql', indexerWS: 'ws://127.0.0.1:8088/api/v4/graphql/ws', node: 'http://127.0.0.1:9944', nodeWS: 'ws://127.0.0.1:9944', faucet: '', proofServer: 'http://127.0.0.1:6300' };
+const w = await MidnightWalletProvider.build(logger, env, '0000000000000000000000000000000000000000000000000000000000000001');
+await w.start(true);
+console.log('coin', typeof w.getCoinPublicKey(), w.getCoinPublicKey());
+console.log('enc', typeof w.getEncryptionPublicKey(), w.getEncryptionPublicKey());
+console.log('keys', Object.keys(w.zswapSecretKeys || {}));
+console.log('coinPublicKey', w.zswapSecretKeys?.coinPublicKey);
+console.log('encryptionPublicKey', w.zswapSecretKeys?.encryptionPublicKey);
+await w.stop();

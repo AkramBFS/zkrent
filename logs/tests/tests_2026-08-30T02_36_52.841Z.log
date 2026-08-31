@@ -1,0 +1,35 @@
+[03:36:52.914] INFO (13928): Initializing wallet builder for undeployed
+[03:36:53.068] INFO (13928): Creating dust wallet with params: {"indexerClientConnection":{"indexerHttpUrl":"http://127.0.0.1:8088/api/v4/graphql","indexerWsUrl":"ws://127.0.0.1:8088/api/v4/graphql/ws"},"provingServerUrl":"http://127.0.0.1:6300/","networkId":"undeployed","relayURL":"ws://127.0.0.1:9944/","txHistoryStorage":{"entries":{}},"costParameters":{"ledgerParams":{"__wbg_ptr":4653104},"additionalFeeOverhead":"500000000000000000000","feeBlocksMargin":5}}
+[03:36:53.105] INFO (13928): Getting initial state of wallet...
+[03:36:53.148] INFO (13928): Getting initial state of wallet...
+[03:36:53.159] INFO (13928): Your wallet address is: 1bd4f827be97ff013c4a702e4b08f30ec378728a54670cf7cc92cb9b1a14eff6, waiting for funds...
+[03:36:53.160] INFO (13928): Your wallet balance is: 0, waiting to receive tokens...
+[03:36:53.161] INFO (13928): Syncing wallet...
+[03:36:53.173] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=false, dust=false }
+[03:36:53.173] INFO (13928): Wallet synced state emission (synced=false): { shielded=false, unshielded=false, dust=false }
+[03:36:53.242] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=false, dust=false }
+[03:36:53.338] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=false, dust=false }
+[03:36:53.374] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=false, dust=false }
+[03:36:53.533] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=false, dust=false }
+[03:36:53.534] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=false, dust=false }
+[03:36:53.535] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=false, dust=false }
+[03:36:53.535] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=false, dust=false }
+[03:36:53.536] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=true, dust=false }
+[03:36:53.615] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=true, dust=false }
+[03:36:53.698] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=true, dust=false }
+[03:36:53.781] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=true, dust=false }
+[03:36:53.871] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=true, dust=false }
+[03:36:53.944] INFO (13928): Wallet synced state emission: { shielded=false, unshielded=true, dust=false }
+[03:36:54.010] INFO (13928): Wallet synced state emission: { shielded=true, unshielded=true, dust=false }
+[03:36:54.084] INFO (13928): Wallet synced state emission: { shielded=true, unshielded=true, dust=false }
+[03:36:54.165] INFO (13928): Wallet synced state emission: { shielded=true, unshielded=true, dust=false }
+[03:36:54.242] INFO (13928): Wallet synced state emission: { shielded=true, unshielded=true, dust=false }
+[03:36:54.306] INFO (13928): Wallet synced state emission: { shielded=true, unshielded=true, dust=false }
+[03:36:54.381] INFO (13928): Wallet synced state emission: { shielded=true, unshielded=true, dust=false }
+[03:36:54.447] INFO (13928): Wallet synced state emission: { shielded=true, unshielded=true, dust=false }
+[03:36:54.521] INFO (13928): Wallet synced state emission: { shielded=true, unshielded=true, dust=true }
+[03:37:23.231] INFO (13928): Wallet synced state emission: { shielded=true, unshielded=true, dust=true }
+[03:37:23.231] INFO (13928): Wallet synced state emission (synced=true): { shielded=true, unshielded=true, dust=true }
+[03:37:23.232] INFO (13928): Sync complete
+[03:37:23.234] INFO (13928): Wallet balances after sync - Shielded: {"0000000000000000000000000000000000000000000000000000000000000000":"250000000000000","0000000000000000000000000000000000000000000000000000000000000001":"50000000000000","0000000000000000000000000000000000000000000000000000000000000002":"50000000000000"}, Unshielded: {"0000000000000000000000000000000000000000000000000000000000000000":"250000000000000"}, Dust: "1250000000000000000000000"
+[03:37:23.238] INFO (13928): Your wallet balance after sync is: 0
