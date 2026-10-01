@@ -155,7 +155,7 @@ export async function GET(req: NextRequest) {
           propertyTitle: app.property.title,
           propertyAddress: `${app.property.address}, ${app.property.city}, ${app.property.state} ${app.property.zip}`,
           propertyPrice: app.property.price,
-          tenantId: app.tenantId,
+          tenantId: isRevealed ? app.tenantId : undefined,
           // Privacy preservation: Identity exposed ONLY if consent granted
           tenantName: isRevealed ? (app.tenant.displayName || 'Tenant') : `Applicant ${app.applicantDisplayId}`,
           tenantEmail: isRevealed ? app.tenant.email : undefined,

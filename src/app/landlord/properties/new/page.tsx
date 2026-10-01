@@ -17,12 +17,19 @@ import {
   Plus,
   X,
   Lock,
+  Upload,
+  ImageIcon,
+  Loader2,
 } from 'lucide-react';
 
 export default function NewPropertyWizardPage() {
   const router = useRouter();
   const { addProperty } = useZkRent();
   const prefersReduced = useReducedMotion();
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
   // Wizard Step (1: Basics, 2: Specs & Details, 3: ZK Requirements, 4: Review & Publish)
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -67,6 +74,37 @@ export default function NewPropertyWizardPage() {
 
   const removeAmenity = (item: string) => {
     setAmenities(amenities.filter((a) => a !== item));
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    setUploadSuccess(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to upload photo');
+      }
+
+      setImageUrl(data.url);
+      setUploadSuccess(`Uploaded securely (${file.name})`);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Photo upload failed');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -358,14 +396,119 @@ export default function NewPropertyWizardPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[#3D3531] mb-1 font-semibold">Photo Image URL</label>
-                  <input
-                    type="url"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    className="w-full p-2.5 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20]"
-                  />
+                {/* Property Photo & Upload */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[#3D3531] font-semibold">
+                      Listing Photo & Media
+                    </label>
+                    <span className="text-[10px] text-[#908682] uppercase tracking-wider">
+                      Magic-Byte Validated • EXIF Stripped
+                    </span>
+                  </div>
+
+                  {/* Upload area */}
+                  <div className="border-2 border-dashed border-[#E5E0D8] hover:border-[#B86A36] rounded-xl p-4 bg-white/50 text-center transition-colors">
+                    <input
+                      type="file"
+                      id="photo-upload"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleFileUpload}
+                      disabled={isUploading}
+                      className="hidden"
+                    />
+                    <label
+                      htmlFor="photo-upload"
+                      className="cursor-pointer flex flex-col items-center justify-center gap-2 py-2"
+                    >
+                      {isUploading ? (
+                        <Loader2 className="w-6 h-6 text-[#B86A36] animate-spin" />
+                      ) : (
+                        <Upload className="w-6 h-6 text-[#B86A36]" />
+                      )}
+                      <div className="text-xs font-semibold text-[#231F20]">
+                        {isUploading ? 'Validating and uploading securely...' : 'Click to upload property photo'}
+                      </div>
+                      <div className="text-[10px] text-[#908682]">
+                        Supports JPEG, PNG, WebP up to 5MB (Local & S3 storage compatible)
+                      </div>
+                    </label>
+                  </div>
+
+                  {uploadError && (
+                    <div className="p-2.5 rounded bg-red-50 border border-red-200 text-red-700 text-xs">
+                      {uploadError}
+                    </div>
+                  )}
+
+                  {uploadSuccess && (
+                    <div className="p-2 rounded bg-green-50 border border-green-200 text-green-700 text-xs flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                      <span>{uploadSuccess}</span>
+                    </div>
+                  )}
+
+                  {/* Curated Offline Presets */}
+                  <div className="pt-1">
+                    <span className="text-[11px] text-[#908682] block mb-1.5">Or choose a curated demo architectural asset:</span>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageUrl('/images/properties/solstice-penthouse.svg');
+                          setUploadSuccess('Selected Solstice Penthouse SVG');
+                          setUploadError(null);
+                        }}
+                        className="text-[11px] px-2.5 py-1 rounded bg-[#E5E0D8]/60 hover:bg-[#E5E0D8] text-[#231F20] transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <ImageIcon className="w-3 h-3 text-[#B86A36]" />
+                        <span>Solstice Penthouse (SVG)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageUrl('/images/properties/heritage-brownstone.svg');
+                          setUploadSuccess('Selected Heritage Brownstone SVG');
+                          setUploadError(null);
+                        }}
+                        className="text-[11px] px-2.5 py-1 rounded bg-[#E5E0D8]/60 hover:bg-[#E5E0D8] text-[#231F20] transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <ImageIcon className="w-3 h-3 text-[#B86A36]" />
+                        <span>Heritage Brownstone (SVG)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Manual URL entry */}
+                  <div className="pt-1">
+                    <label className="block text-[11px] text-[#908682] mb-1">Direct Image URL</label>
+                    <input
+                      type="url"
+                      value={imageUrl}
+                      onChange={(e) => setImageUrl(e.target.value)}
+                      placeholder="https://... or /api/media/..."
+                      className="w-full p-2 rounded-lg bg-white border border-[#E5E0D8] text-[#231F20] text-xs font-mono"
+                    />
+                  </div>
+
+                  {/* Preview Thumbnail */}
+                  {imageUrl && (
+                    <div className="mt-2 p-2 bg-white rounded-lg border border-[#E5E0D8] flex items-center gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imageUrl}
+                        alt="Property preview"
+                        className="w-20 h-14 object-cover rounded bg-neutral-900 border border-neutral-300"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/images/properties/solstice-penthouse.svg';
+                        }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-bold text-[#231F20] truncate">Active Photo Preview</div>
+                        <div className="text-[10px] text-[#908682] truncate font-mono">{imageUrl}</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

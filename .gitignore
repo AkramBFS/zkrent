@@ -55,5 +55,6 @@ contracts/**/*.json
 .agents
 midnight-skills
 
-# Local database
+# Local database & storage
 /.pgdata
+/storage

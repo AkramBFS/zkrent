@@ -6,17 +6,13 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { FadeIn, MotionCard, LUXURY_EASE } from '@/components/motion/motion';
 import {
   User,
-  Shield,
-  Key,
   Wallet,
   Lock,
   RotateCcw,
   Check,
   Sparkles,
   Smartphone,
-  LogOut,
   ExternalLink,
-  RefreshCw,
 } from 'lucide-react';
 import { useMidnightWallet } from '@/hooks/useMidnightWallet';
 
@@ -138,12 +134,12 @@ export default function TenantSettingsPage() {
                       className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                         wallet.walletType === 'lace_extension' && wallet.isConnected
                           ? 'bg-purple-900/60 text-purple-200 border-purple-400'
-                          : 'bg-[#4A6B32]/40 text-[#00A8E8] border-[#00A8E8]/30'
+                          : 'bg-amber-950/80 text-amber-300 border-amber-500/60'
                       }`}
                     >
                       {wallet.walletType === 'lace_extension' && wallet.isConnected
-                        ? 'Lace Extension'
-                        : 'Demo Keypair (Sandbox)'}
+                        ? 'Lace Extension (Live)'
+                        : '⚠ Demo Wallet (Simulated)'}
                     </span>
                   </div>
                   <span className="text-[10px] text-[#908682]">
@@ -158,11 +154,11 @@ export default function TenantSettingsPage() {
                 {/* Balances */}
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <div className="p-2 rounded bg-white/5 border border-white/10">
-                    <span className="text-[10px] text-[#908682] block">tSTAR Balance (Gas)</span>
-                    <span className="text-sm font-bold text-[#00A8E8]">{wallet.balance.tStar} tSTAR</span>
+                    <span className="text-[10px] text-[#908682] block">tNIGHT Balance (Gas)</span>
+                    <span className="text-sm font-bold text-[#00A8E8]">{wallet.balance.tNight} tNIGHT</span>
                   </div>
                   <div className="p-2 rounded bg-white/5 border border-white/10">
-                    <span className="text-[10px] text-[#908682] block">Shielded DUST</span>
+                    <span className="text-[10px] text-[#908682] block">Shielded DUST (Privacy)</span>
                     <span className="text-sm font-bold text-amber-400">{wallet.balance.dust} DUST</span>
                   </div>
                 </div>

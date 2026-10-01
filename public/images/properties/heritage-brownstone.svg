@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800">
+  <defs>
+    <linearGradient id="brick-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E1917" />
+      <stop offset="50%" stop-color="#2B211E" />
+      <stop offset="100%" stop-color="#161211" />
+    </linearGradient>
+    <linearGradient id="warm-copper" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#D97742" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+    <linearGradient id="amber-window" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#452718" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#24140D" stop-opacity="0.95" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#brick-bg)" />
+  <!-- Architectural Brownstone Facade -->
+  <rect x="220" y="140" width="760" height="520" rx="6" fill="#241A17" stroke="#4A352F" stroke-width="2" />
+  
+  <!-- Cornice Top Detail -->
+  <rect x="200" y="120" width="800" height="24" rx="3" fill="#3D2924" stroke="#5C3E37" stroke-width="2" />
+  <rect x="240" y="110" width="720" height="12" rx="2" fill="#2E1F1B" />
+  
+  <!-- Classic Arched Windows - Floor 2 -->
+  <path d="M 320 280 A 60 60 0 0 1 440 280 L 440 380 L 320 380 Z" fill="url(#amber-window)" stroke="#4A352F" stroke-width="3" />
+  <path d="M 540 280 A 60 60 0 0 1 660 280 L 660 380 L 540 380 Z" fill="url(#amber-window)" stroke="#4A352F" stroke-width="3" />
+  <path d="M 760 280 A 60 60 0 0 1 880 280 L 880 380 L 760 380 Z" fill="url(#amber-window)" stroke="#4A352F" stroke-width="3" />
+
+  <!-- Lower Windows and Stoop Portal -->
+  <rect x="320" y="440" width="120" height="160" rx="3" fill="url(#amber-window)" stroke="#4A352F" stroke-width="3" />
+  <!-- Classic Double Door -->
+  <rect x="540" y="420" width="120" height="180" rx="4" fill="#1C1412" stroke="#5C3E37" stroke-width="3" />
+  <line x1="600" y1="420" x2="600" y2="600" stroke="#4A352F" stroke-width="2" />
+  <circle cx="585" cy="510" r="4" fill="#D97742" />
+  <circle cx="615" cy="510" r="4" fill="#D97742" />
+  <rect x="760" y="440" width="120" height="160" rx="3" fill="url(#amber-window)" stroke="#4A352F" stroke-width="3" />
+  
+  <!-- Stoop Railings & Steps -->
+  <line x1="480" y1="600" x2="720" y2="600" stroke="#5C3E37" stroke-width="4" />
+  <line x1="500" y1="620" x2="700" y2="620" stroke="#5C3E37" stroke-width="4" />
+  <line x1="520" y1="640" x2="680" y2="640" stroke="#5C3E37" stroke-width="4" />
+
+  <!-- Warm Lantern Glow -->
+  <circle cx="510" cy="450" r="16" fill="#F59E0B" opacity="0.25" />
+  <circle cx="510" cy="450" r="6" fill="#F59E0B" />
+  <circle cx="690" cy="450" r="16" fill="#F59E0B" opacity="0.25" />
+  <circle cx="690" cy="450" r="6" fill="#F59E0B" />
+
+  <!-- Title & Typography -->
+  <text x="240" y="700" font-family="serif" font-size="28" font-weight="bold" fill="url(#warm-copper)" letter-spacing="2">HERITAGE BROWNSTONE FLAT</text>
+  <text x="240" y="730" font-family="monospace" font-size="14" fill="#A8968F" letter-spacing="3">SOUTH CONGRESS • AUSTIN, TX • MIDNIGHT ZK APPLICATION READY</text>
+</svg>

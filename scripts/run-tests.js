@@ -20,6 +20,10 @@ const suites = [
     name: 'Midnight Smart Contract & Prover Integration Tests',
     path: resolve(rootDir, 'scripts/test-midnight-prover.ts'),
   },
+  {
+    name: 'Phase 4 Lifecycle, Storage & Security Suite',
+    path: resolve(rootDir, 'scripts/test-phase4-lifecycle.ts'),
+  },
 ];
 
 console.log('==============================================================');

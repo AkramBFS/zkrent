@@ -134,8 +134,9 @@ function executeSimulatedProof(
 
   const provingTimeMs = Math.max(1200, Date.now() - startTime + Math.floor(Math.random() * 300));
 
-  // Nullifier & criteria hashes
-  const nullifierSeed = `${credentials.tenantSecret || 'tenant-sec'}:${propertyRules.criteriaHash || monthlyRent}`;
+  // Nullifier & criteria hashes (scoped to attestation issuedAt epoch)
+  const issuedAtEpoch = credentials.issuedAt ?? BigInt(Math.floor(Date.now() / 1000));
+  const nullifierSeed = `${credentials.tenantSecret || 'tenant-sec'}:${propertyRules.criteriaHash || monthlyRent}:${issuedAtEpoch}`;
   const nullifier = `zk_null_${createHash('sha256').update(nullifierSeed).digest('hex').slice(0, 32)}`;
   const criteriaHash = propertyRules.criteriaHash || `ch_${createHash('sha256').update(`${monthlyRent}:${maxRentToIncomeRatioBps}:${minCreditScore}`).digest('hex').slice(0, 24)}`;
 
@@ -235,11 +236,11 @@ async function executeLiveMidnightProof(
   const mockWalletProvider = {
     getCoinPublicKey: () => dummyPublicKey,
     getEncryptionPublicKey: () => dummyPublicKey,
-    balanceTx: async (tx: any) => tx,
+    balanceTx: async (tx: unknown) => tx,
     submitTx: async () => `0x${randomBytes(32).toString('hex')}`,
   };
 
-  const providers: any = {
+  const providers: Record<string, unknown> = {
     privateStateProvider,
     publicDataProvider,
     zkConfigProvider,
@@ -253,14 +254,14 @@ async function executeLiveMidnightProof(
   const nowSeconds = BigInt(Math.floor(Date.now() / 1000));
 
   // Synthesize unproven call tx
-  const callTxData = await createUnprovenCallTx(providers, {
-    compiledContract: compiledContract as any,
+  const callTxData = await createUnprovenCallTx(providers as never, {
+    compiledContract: compiledContract as never,
     contractAddress: config.contractAddress,
     circuitId: 'proveQualification',
     args: [listingIdBytes, applicationIdBytes, nowSeconds],
   } as never);
 
-  const { unprovenTx } = (callTxData as any).private;
+  const { unprovenTx } = (callTxData as { private: { unprovenTx: { prove(p: unknown, c: unknown): Promise<{ proof?: Uint8Array; publicInputs?: Uint8Array }> } } }).private;
   const costModel = CostModel.initialCostModel();
 
   const provenTx = await unprovenTx.prove(proofProvider, costModel);
@@ -296,7 +297,9 @@ async function executeLiveMidnightProof(
 
 /**
  * Execute zero-knowledge qualification verification.
- * Automatically tries live devnet first; gracefully falls back to sandbox simulation.
+ * Strictly enforces configured mode:
+ * - When MIDNIGHT_PROVER_MODE="live", requires reachable proof-server & node; fails loudly if offline.
+ * - When MIDNIGHT_PROVER_MODE="simulation", executes transparent mathematical simulation.
  */
 export async function executeMidnightQualificationProof(
   credentials: TenantWitnessInput,
@@ -309,15 +312,18 @@ export async function executeMidnightQualificationProof(
 ): Promise<MidnightProofExecutionResult> {
   const mergedConfig = { ...DEFAULT_CONFIG, ...config };
   const startTime = Date.now();
+  const proverMode = (process.env.MIDNIGHT_PROVER_MODE || 'simulation').toLowerCase();
 
-  try {
+  if (proverMode === 'live') {
     const health = await checkDevnetHealth(mergedConfig);
-    if (health.ready) {
-      return await executeLiveMidnightProof(credentials, propertyRules, mergedConfig, startTime);
+    if (!health.ready) {
+      throw new Error(
+        `Midnight live prover infrastructure is offline (Proof Server: ${health.proofServer ? 'ONLINE' : 'OFFLINE'}, Node: ${health.node ? 'ONLINE' : 'OFFLINE'}). Live mode cannot proceed without running services. To run an offline demo, explicitly set MIDNIGHT_PROVER_MODE="simulation".`
+      );
     }
-  } catch (error) {
-    console.warn('[MidnightProver] Live devnet execution failed, using sandbox fallback:', error);
+    return await executeLiveMidnightProof(credentials, propertyRules, mergedConfig, startTime);
   }
 
+  // Explicit simulation mode
   return executeSimulatedProof(credentials, propertyRules, mergedConfig.contractAddress, startTime);
 }

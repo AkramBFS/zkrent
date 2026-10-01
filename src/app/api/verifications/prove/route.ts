@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { executeMidnightQualificationProof } from '@/midnight/zk';
+import { executeMidnightQualificationProof, checkDevnetHealth } from '@/midnight/zk';
 import { z } from 'zod';
 
 const proveRequestSchema = z.object({
@@ -11,17 +11,17 @@ const proveRequestSchema = z.object({
     .object({
       isEligible: z.boolean(),
       tier: z.number().int().min(0).max(2).optional().default(0),
-      nullifier: z.string().optional(),
-      criteriaHash: z.string().optional(),
-      midnightTxHash: z.string(),
-      proofHash: z.string(),
+      nullifier: z.string().min(10, 'Nullifier required'),
+      criteriaHash: z.string().min(8, 'Criteria hash required'),
+      midnightTxHash: z.string().min(10, 'Transaction hash required'),
+      proofHash: z.string().min(10, 'Proof hash required'),
       circuitId: z.string().optional().default('proveQualification'),
       blockHeight: z.number().int().optional().default(1849200),
       merkleRoot: z.string().optional(),
       provingTimeMs: z.number().int().optional().default(1200),
-      mode: z.enum(['live_devnet', 'sandbox_simulation']).optional().default('sandbox_simulation'),
-      requirements: z.record(z.string(), z.any()).optional(),
-      zkMetrics: z.record(z.string(), z.any()).optional(),
+      mode: z.enum(['live_devnet', 'sandbox_simulation']).default('sandbox_simulation'),
+      requirements: z.record(z.string(), z.unknown()).optional(),
+      zkMetrics: z.record(z.string(), z.unknown()).optional(),
     })
     .optional(),
   // Fallback legacy payload
@@ -95,17 +95,51 @@ export async function POST(req: NextRequest) {
       blockHeight: number;
       provingTimeMs: number;
       mode: 'live_devnet' | 'sandbox_simulation';
-      requirements?: any;
-      zkMetrics?: any;
+      requirements?: Record<string, unknown>;
+      zkMetrics?: Record<string, unknown>;
     };
 
     if (clientProof) {
-      // 1. Client-Side Prover Path: Raw financial data never crossed network boundary
+      // 1. Live Devnet Verification Check
+      if (clientProof.mode === 'live_devnet') {
+        const health = await checkDevnetHealth();
+        if (!health.ready) {
+          return NextResponse.json(
+            { error: 'Live proof verification failed: Midnight devnet node or proof-server is offline' },
+            { status: 503 }
+          );
+        }
+        // In live devnet mode, check criteria hash binding
+        if (application.property.criteriaHash && clientProof.criteriaHash !== application.property.criteriaHash) {
+          return NextResponse.json(
+            { error: 'Proof rejected: Proof criteria hash does not match current listing requirements' },
+            { status: 400 }
+          );
+        }
+      }
+
+      // 2. Simulation Mode Checks
+      if (clientProof.mode === 'sandbox_simulation') {
+        if (process.env.ALLOW_SIMULATED_PROOFS === 'false') {
+          return NextResponse.json(
+            { error: 'Simulated proofs are disabled in this environment' },
+            { status: 403 }
+          );
+        }
+        // Ensure criteria hash is bound
+        if (application.property.criteriaHash && clientProof.criteriaHash !== application.property.criteriaHash) {
+          return NextResponse.json(
+            { error: 'Proof rejected: Criteria hash mismatch' },
+            { status: 400 }
+          );
+        }
+      }
+
       finalProofResult = {
         isEligible: clientProof.isEligible,
         tier: clientProof.tier ?? 0,
-        nullifier: clientProof.nullifier || `zk_null_${applicationId.slice(0, 16)}`,
-        criteriaHash: clientProof.criteriaHash || application.property.criteriaHash || 'ch_default',
+        nullifier: clientProof.nullifier,
+        criteriaHash: clientProof.criteriaHash,
         midnightTxHash: clientProof.midnightTxHash,
         proofHash: clientProof.proofHash,
         circuitId: clientProof.circuitId,
@@ -117,7 +151,7 @@ export async function POST(req: NextRequest) {
         zkMetrics: clientProof.zkMetrics,
       };
     } else if (credentials) {
-      // 2. Fallback Path: Server-side proving (logs privacy warning)
+      // Fallback Path: Server-side proving (logs privacy warning)
       console.warn('[ZkRent-Security] Warning: Raw credentials received over HTTP for server-side proving fallback.');
       const propertyRules = {
         monthlyRent: application.property.price,
@@ -153,12 +187,30 @@ export async function POST(req: NextRequest) {
         provingTimeMs: result.provingTimeMs,
         mode: result.mode,
         requirements: result.requirements,
-        zkMetrics: result.zkMetrics,
+        zkMetrics: result.zkMetrics as unknown as Record<string, unknown>,
       };
     } else {
       return NextResponse.json(
         { error: 'Missing proofResult or credentials in request' },
         { status: 400 }
+      );
+    }
+
+    // 3. Anti-Replay: Nullifier consumption check
+    const existingNullifier = await prisma.verification.findFirst({
+      where: {
+        nullifier: finalProofResult.nullifier,
+        status: 'VERIFIED',
+        lifecycle: 'Active',
+        expiresAt: { gt: new Date() },
+        applicationId: { not: applicationId },
+      },
+    });
+
+    if (existingNullifier) {
+      return NextResponse.json(
+        { error: 'Proof rejected: Nullifier has already been consumed for another application (anti-replay check failed)' },
+        { status: 409 }
       );
     }
 
@@ -218,14 +270,12 @@ export async function POST(req: NextRequest) {
         zkProofHash: finalProofResult.proofHash,
         blockHeight: finalProofResult.blockHeight,
         merkleRoot: finalProofResult.merkleRoot,
-        provingTimeMs: finalProofResult.provingTimeMs,
         mode: finalProofResult.mode,
-        requirements: finalProofResult.requirements,
         zkMetrics: finalProofResult.zkMetrics,
       },
     });
   } catch (error) {
-    console.error('Midnight verification proof error:', error);
-    return NextResponse.json({ error: 'Failed to synthesize qualification proof' }, { status: 500 });
+    console.error('Error in proof verification API:', error);
+    return NextResponse.json({ error: 'Internal server error processing proof' }, { status: 500 });
   }
 }

@@ -229,13 +229,14 @@ export circuit proveQualification(
   const isPrime = meetsPrimeRatio && meetsPrimeCredit;
   const tierValue: Uint<8> = isPrime ? 1 : 0;
 
-  // 5. Anti-Replay Nullifier Verification
-  const nullifier = persistentHash<Vector<3, Bytes<32>>>([
+  // 5. Anti-Replay Nullifier Verification (scoped to attestation issuance epoch)
+  const nullifier = persistentHash<Vector<4, Bytes<32>>>([
     pad(32, "zkrent:null:"),
     tenantSecret,
-    listingId
+    listingId,
+    (attestation.issuedAt as Field) as Bytes<32>
   ]);
-  assert(!nullifierSet.member(disclose(nullifier)), "Applicant already proved qualification for this listing");
+  assert(!nullifierSet.member(disclose(nullifier)), "Applicant already proved qualification with this attestation for this listing");
   nullifierSet.insert(disclose(nullifier));
 
   // 6. Record Application Status On-Chain (30-day validity)

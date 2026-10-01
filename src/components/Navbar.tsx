@@ -101,15 +101,25 @@ export function Navbar() {
             {/* Midnight Wallet Indicator */}
             <Link
               href="/tenant/settings"
-              className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#3D3531] hover:bg-[#3D3531]/80 text-[11px] font-mono border border-[#00A8E8]/30 transition-colors cursor-pointer"
+              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-[11px] font-mono border transition-colors cursor-pointer ${
+                wallet.isConnected
+                  ? wallet.isDemo
+                    ? 'bg-amber-950/70 hover:bg-amber-900/80 border-amber-500/50 text-amber-300'
+                    : 'bg-[#00A8E8]/10 hover:bg-[#00A8E8]/20 border-[#00A8E8]/40 text-[#00A8E8]'
+                  : 'bg-[#3D3531] hover:bg-[#3D3531]/80 border-white/10 text-white/70'
+              }`}
               title="Manage Midnight Wallet & Network"
             >
-              <Wallet className="w-3 h-3 text-[#00A8E8]" />
+              <Wallet className="w-3 h-3" />
               {wallet.isConnected ? (
                 <span>
-                  <span className="text-[#00A8E8]">{wallet.walletType === 'lace_extension' ? 'Lace: ' : 'Demo: '}</span>
-                  <span className="text-[#E5E0D8]">{wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}</span>
-                  <span className="text-white/40 ml-1">({wallet.balance.tStar} tSTAR)</span>
+                  {wallet.isDemo ? (
+                    <span className="font-bold text-amber-400 mr-1">[DEMO WALLET (SIMULATED)]</span>
+                  ) : (
+                    <span className="text-[#00A8E8] mr-1">Lace:</span>
+                  )}
+                  <span className="text-[#E5E0D8]">{wallet.address?.slice(0, 10)}...{wallet.address?.slice(-4)}</span>
+                  <span className="text-white/50 ml-1.5">({wallet.balance.tNight} tNIGHT)</span>
                 </span>
               ) : (
                 <span className="text-white/70 hover:text-white">Connect Wallet</span>

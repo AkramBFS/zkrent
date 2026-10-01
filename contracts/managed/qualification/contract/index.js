@@ -71,8 +71,6 @@ class _ListingCriteria_0 {
 
 const _descriptor_8 = new _ListingCriteria_0();
 
-const _descriptor_9 = new __compactRuntime.CompactTypeVector(3, _descriptor_0);
-
 class _Attestation_0 {
   alignment() {
     return _descriptor_0.alignment().concat(_descriptor_0.alignment().concat(_descriptor_3.alignment().concat(_descriptor_7.alignment().concat(_descriptor_7.alignment().concat(_descriptor_5.alignment().concat(_descriptor_3.alignment().concat(_descriptor_3.alignment())))))));
@@ -94,11 +92,15 @@ class _Attestation_0 {
   }
 }
 
-const _descriptor_10 = new _Attestation_0();
+const _descriptor_9 = new _Attestation_0();
 
-const _descriptor_11 = new __compactRuntime.CompactTypeVector(6, _descriptor_0);
+const _descriptor_10 = new __compactRuntime.CompactTypeVector(2, _descriptor_0);
 
-const _descriptor_12 = new __compactRuntime.CompactTypeVector(2, _descriptor_0);
+const _descriptor_11 = new __compactRuntime.CompactTypeVector(3, _descriptor_0);
+
+const _descriptor_12 = new __compactRuntime.CompactTypeVector(6, _descriptor_0);
+
+const _descriptor_13 = new __compactRuntime.CompactTypeVector(4, _descriptor_0);
 
 class _Either_0 {
   alignment() {
@@ -116,9 +118,9 @@ class _Either_0 {
   }
 }
 
-const _descriptor_13 = new _Either_0();
+const _descriptor_14 = new _Either_0();
 
-const _descriptor_14 = new __compactRuntime.CompactTypeUnsignedInteger(340282366920938463463374607431768211455n, 16);
+const _descriptor_15 = new __compactRuntime.CompactTypeUnsignedInteger(340282366920938463463374607431768211455n, 16);
 
 class _ContractAddress_0 {
   alignment() {
@@ -134,7 +136,7 @@ class _ContractAddress_0 {
   }
 }
 
-const _descriptor_15 = new _ContractAddress_0();
+const _descriptor_16 = new _ContractAddress_0();
 
 export class Contract {
   witnesses;
@@ -379,14 +381,14 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
           __compactRuntime.typeError('consumeQualification',
                                      'argument 1 (as invoked from Typescript)',
-                                     'qualification.compact line 262 char 1',
+                                     'qualification.compact line 263 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
         if (!(applicationId_0.buffer instanceof ArrayBuffer && applicationId_0.BYTES_PER_ELEMENT === 1 && applicationId_0.length === 32)) {
           __compactRuntime.typeError('consumeQualification',
                                      'argument 1 (argument 2 as invoked from Typescript)',
-                                     'qualification.compact line 262 char 1',
+                                     'qualification.compact line 263 char 1',
                                      'Bytes<32>',
                                      applicationId_0)
         }
@@ -416,14 +418,14 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
           __compactRuntime.typeError('revokeQualification',
                                      'argument 1 (as invoked from Typescript)',
-                                     'qualification.compact line 291 char 1',
+                                     'qualification.compact line 292 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
         if (!(applicationId_0.buffer instanceof ArrayBuffer && applicationId_0.BYTES_PER_ELEMENT === 1 && applicationId_0.length === 32)) {
           __compactRuntime.typeError('revokeQualification',
                                      'argument 1 (argument 2 as invoked from Typescript)',
-                                     'qualification.compact line 291 char 1',
+                                     'qualification.compact line 292 char 1',
                                      'Bytes<32>',
                                      applicationId_0)
         }
@@ -586,15 +588,19 @@ export class Contract {
     }
   }
   _persistentHash_0(value_0) {
-    const result_0 = __compactRuntime.persistentHash(_descriptor_11, value_0);
-    return result_0;
-  }
-  _persistentHash_1(value_0) {
     const result_0 = __compactRuntime.persistentHash(_descriptor_12, value_0);
     return result_0;
   }
+  _persistentHash_1(value_0) {
+    const result_0 = __compactRuntime.persistentHash(_descriptor_13, value_0);
+    return result_0;
+  }
   _persistentHash_2(value_0) {
-    const result_0 = __compactRuntime.persistentHash(_descriptor_9, value_0);
+    const result_0 = __compactRuntime.persistentHash(_descriptor_10, value_0);
+    return result_0;
+  }
+  _persistentHash_3(value_0) {
+    const result_0 = __compactRuntime.persistentHash(_descriptor_11, value_0);
     return result_0;
   }
   _getAttestation_0(context, partialProofData) {
@@ -609,8 +615,8 @@ export class Contract {
                                  result_0)
     }
     partialProofData.privateTranscriptOutputs.push({
-      value: _descriptor_10.toValue(result_0),
-      alignment: _descriptor_10.alignment()
+      value: _descriptor_9.toValue(result_0),
+      alignment: _descriptor_9.alignment()
     });
     return result_0;
   }
@@ -666,7 +672,7 @@ export class Contract {
     return result_0;
   }
   _getPublicKey_0(sk_0) {
-    return this._persistentHash_1([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 112, 107, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    return this._persistentHash_2([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 112, 107, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                                    sk_0]);
   }
   _computeCriteriaHash_0(listingId_0,
@@ -907,7 +913,7 @@ export class Contract {
                             'Attestation not yet valid');
     __compactRuntime.assert(currentTime_0 <= attestation_0.expiresAt,
                             'Attestation has expired');
-    const expectedCommitment_0 = this._persistentHash_2([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 116, 101, 110, 97, 110, 116, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    const expectedCommitment_0 = this._persistentHash_3([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 116, 101, 110, 97, 110, 116, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                                                          applicationId_0,
                                                          tenantSalt_0]);
     __compactRuntime.assert(this._equal_2(attestation_0.subjectCommitment,
@@ -965,9 +971,12 @@ export class Contract {
                                 t_3 >= listing_0.primeMinCreditScore);
     const isPrime_0 = meetsPrimeRatio_0 && meetsPrimeCredit_0;
     const tierValue_0 = isPrime_0 ? 1n : 0n;
-    const nullifier_0 = this._persistentHash_2([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 110, 117, 108, 108, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    const nullifier_0 = this._persistentHash_1([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 110, 117, 108, 108, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                                                 tenantSecret_0,
-                                                listingId_0]);
+                                                listingId_0,
+                                                __compactRuntime.convertBigintToBytes(32,
+                                                                                      attestation_0.issuedAt,
+                                                                                      'qualification.compact line 237 char 5')]);
     __compactRuntime.assert(!_descriptor_5.fromValue(__compactRuntime.queryLedgerState(context,
                                                                                        partialProofData,
                                                                                        [
@@ -984,7 +993,7 @@ export class Contract {
                                                                                         'member',
                                                                                         { popeq: { cached: true,
                                                                                                    result: undefined } }]).value),
-                            'Applicant already proved qualification for this listing');
+                            'Applicant already proved qualification with this attestation for this listing');
     __compactRuntime.queryLedgerState(context,
                                       partialProofData,
                                       [
@@ -1004,7 +1013,7 @@ export class Contract {
     const validityPeriod_0 = 2592000n;
     const proofExpiresAt_0 = ((t1) => {
                                if (t1 > 18446744073709551615n) {
-                                 throw new __compactRuntime.CompactError('qualification.compact line 243 char 36: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
+                                 throw new __compactRuntime.CompactError('qualification.compact line 244 char 36: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
                                }
                                return t1;
                              })(currentTime_0 + validityPeriod_0);
@@ -1163,7 +1172,7 @@ export class Contract {
     __compactRuntime.assert(record_0.lifecycle === 0,
                             'Only active qualification can be revoked');
     const tenantSalt_0 = this._getTenantSalt_0(context, partialProofData);
-    const callerCommitment_0 = this._persistentHash_2([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 116, 101, 110, 97, 110, 116, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    const callerCommitment_0 = this._persistentHash_3([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 116, 101, 110, 97, 110, 116, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                                                        applicationId_0,
                                                        tenantSalt_0]);
     __compactRuntime.assert(this._equal_4(callerCommitment_0,
@@ -1570,7 +1579,7 @@ export const contractReferenceLocations =
   { tag: 'publicLedgerArray', indices: { } };
 export const expectedVk = {
   'consumeQualification': '0438858eeb6c1a48a07d61b3684a93c59871f16b6765bda5a127b8793fa9ec66',
-  'proveQualification': 'ed02edc2ba2ec40880e9c322bec460ea2c6318fc5aaaf06e3327e0b3940af6d8',
+  'proveQualification': 'ab12e8719604a3ab8302d7385a2bcdb794ca338c20587c29ebd970d8b3682859',
   'registerListingCriteria': '54e1f1075975cc5c7564bea88722ed4b77e12d08a9e39d5a434587bdf41e9c87',
   'revokeQualification': 'addf49462731f6a145fc00857b4453929fb35a0202887355ff63f443859e4b9e',
   'setPaused': '52890da8ec90edf6e022feff63ade315fc1ae3d9899a0bf2f76c55b3b3ddc43c',

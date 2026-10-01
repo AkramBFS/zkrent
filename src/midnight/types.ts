@@ -11,6 +11,7 @@ export interface TenantWitnessInput {
   tenantSecret?: string | Uint8Array;
   tenantSalt?: string | Uint8Array;
   applicationId?: string | Uint8Array;
+  issuedAt?: bigint | number;
 }
 
 export interface PropertyListingCriteria {

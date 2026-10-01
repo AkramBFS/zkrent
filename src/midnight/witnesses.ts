@@ -32,7 +32,7 @@ function toBytes32(input: string | Uint8Array | undefined, fallback: string): Ui
  * @param credentials Private credential input (income, credit score, background, secrets)
  * @returns An object satisfying the contract's Witnesses<PS> interface
  */
-export function createQualificationWitnesses<PS = any>(
+export function createQualificationWitnesses<PS = unknown>(
   credentials: TenantWitnessInput
 ): Witnesses<PS> {
   const annualIncome = BigInt(Math.max(0, Math.round(Number(credentials.annualIncome))));

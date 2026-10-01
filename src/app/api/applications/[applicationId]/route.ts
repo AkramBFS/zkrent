@@ -69,7 +69,7 @@ export async function GET(
       propertyTitle: application.property.title,
       propertyAddress: `${application.property.address}, ${application.property.city}, ${application.property.state} ${application.property.zip}`,
       propertyPrice: application.property.price,
-      tenantId: application.tenantId,
+      tenantId: isTenant || isRevealed ? application.tenantId : undefined,
       tenantName: isTenant || isRevealed ? (application.tenant.displayName || 'Tenant') : `Applicant ${application.applicantDisplayId}`,
       tenantEmail: isTenant || isRevealed ? application.tenant.email : undefined,
       tenantPhone: isTenant || isRevealed ? '+1 (512) 892-4910' : undefined,

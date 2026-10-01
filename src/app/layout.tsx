@@ -4,6 +4,8 @@ import "./globals.css";
 import { ZkRentProvider } from "@/context/ZkRentContext";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { NotificationToastContainer } from "@/components/NotificationToastContainer";
+import { GuidedWalkthroughModal } from "@/components/GuidedWalkthroughModal";
 
 const sansFont = Inter({
   variable: "--font-body-sans",
@@ -48,6 +50,8 @@ export default function RootLayout({
           <Navbar />
           <main className="flex-1 flex flex-col">{children}</main>
           <Footer />
+          <GuidedWalkthroughModal />
+          <NotificationToastContainer />
         </ZkRentProvider>
       </body>
     </html>

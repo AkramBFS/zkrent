@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A1819" />
+      <stop offset="50%" stop-color="#2D2829" />
+      <stop offset="100%" stop-color="#141213" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#C5A059" />
+      <stop offset="100%" stop-color="#E5C788" />
+    </linearGradient>
+    <linearGradient id="window" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2A3B4C" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#182330" stop-opacity="0.9" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#bg)" />
+  <!-- Architectural Penthouse Mock -->
+  <rect x="150" y="180" width="900" height="480" rx="8" fill="#242021" stroke="#3D3531" stroke-width="2" />
+  <rect x="200" y="220" width="380" height="400" rx="4" fill="url(#window)" stroke="#3D3531" />
+  <rect x="620" y="220" width="380" height="400" rx="4" fill="url(#window)" stroke="#3D3531" />
+  <!-- Mullions -->
+  <line x1="390" y1="220" x2="390" y2="620" stroke="#3D3531" stroke-width="3" />
+  <line x1="810" y1="220" x2="810" y2="620" stroke="#3D3531" stroke-width="3" />
+  <line x1="200" y1="420" x2="580" y2="420" stroke="#3D3531" stroke-width="3" />
+  <line x1="620" y1="420" x2="1000" y2="420" stroke="#3D3531" stroke-width="3" />
+  <!-- Glow & Accents -->
+  <circle cx="920" cy="280" r="40" fill="#E5C788" opacity="0.15" />
+  <text x="230" y="660" font-family="serif" font-size="28" font-weight="bold" fill="url(#gold)" letter-spacing="2">THE SOLSTICE PENTHOUSE</text>
+  <text x="230" y="695" font-family="monospace" font-size="14" fill="#908682" letter-spacing="3">AUSTIN, TX • PRIVATE RESIDENCE • ZK QUALIFIED</text>
+</svg>

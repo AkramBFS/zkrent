@@ -1,21 +1,23 @@
 /**
- * Contract Circuit Test Suite (T1 - T8).
+ * Midnight Contract Circuit Test Suite (T1 - T8).
  *
- * Validates the core security and functional requirements of qualification.compact:
- * - T1: Standard Qualification
- * - T2: Prime Qualification (4x income + 750+ credit)
- * - T3: Low Income & High Rent-To-Income Rejection
- * - T4: Bad Credit & Background Check Failure Rejection
- * - T5: Replay Prevention via Nullifiers
+ * Executes tests DIRECTLY against the real compiled Compact contract (`Contract` from
+ * contracts/managed/qualification/contract/index.js) via `@midnight-ntwrk/compact-runtime`.
+ *
+ * Scenarios Verified:
+ * - T1: Standard Qualification (Tier 0, Active Lifecycle)
+ * - T2: Prime Qualification (Tier 1, High-Earner)
+ * - T3: Low Income & High Rent-to-Income Failure Assertions
+ * - T4: Credit Below Minimum & Failed Background Check Assertions
+ * - T5: Replay Prevention via Epoch-Scoped Nullifiers
  * - T6: Application Squatting Defense via Tenant Commitment
- * - T7: Expired Attestation Enforcement
- * - T8: Unauthorized Listing Modification Protection
- *
- * Run with: node node_modules/tsx/dist/cli.mjs scripts/test-contract-circuits.ts
+ * - T7: Expired Attestation Time Assertion Enforcement
+ * - T8: Unauthorized Listing Modification Protection (Owner-Only)
+ * - Lifecycle: Lease Consumption & Double-Consumption Prevention
  */
 
-import { createHash } from 'node:crypto';
-import { createQualificationWitnesses } from '../src/midnight/witnesses';
+import * as cr from '@midnight-ntwrk/compact-runtime';
+import { Contract, ledger, RecordLifecycle } from '../contracts/managed/qualification/contract/index.js';
 
 let passed = 0;
 let failed = 0;
@@ -30,389 +32,476 @@ function assert(condition: boolean, message: string) {
   }
 }
 
-/**
- * In-memory simulator modeling the exact mathematical constraints
- * and state transitions of qualification.compact.
- */
-class QualificationContractSimulator {
-  public listings = new Map<string, any>();
-  public applicationRecords = new Map<string, any>();
-  public nullifierSet = new Set<string>();
-  public isPaused = false;
-  public adminPk: string;
+// Helpers for compact data structures
+const vec3Bytes32 = new cr.CompactTypeVector(3, new cr.CompactTypeBytes(32));
+const tenantPad = Buffer.alloc(32);
+Buffer.from('zkrent:tenant:').copy(tenantPad);
 
-  constructor(adminPk: string) {
-    this.adminPk = adminPk;
-  }
-
-  getPublicKey(sk: string): string {
-    return createHash('sha256').update(`zkrent:pk:${sk}`).digest('hex');
-  }
-
-  computeCriteriaHash(listingId: string, version: number, rent: number, minInc: number, maxRatio: number, minCred: number): string {
-    return createHash('sha256').update(`${listingId}:${version}:${rent}:${minInc}:${maxRatio}:${minCred}`).digest('hex');
-  }
-
-  registerListingCriteria(callerSk: string, listingId: string, criteria: {
-    monthlyRent: number;
-    minMonthlyIncome: number;
-    maxRentToIncomeRatioBps: number;
-    minCreditScore: number;
-    requireCleanBackground: boolean;
-    minEmploymentMonths: number;
-    primeMinIncomeRatioBps: number;
-    primeMinCreditScore: number;
-    active: boolean;
-  }) {
-    if (this.isPaused) throw new Error('Contract is currently paused');
-    const callerPk = this.getPublicKey(callerSk);
-
-    let version = 1;
-    if (this.listings.has(listingId)) {
-      const existing = this.listings.get(listingId);
-      if (existing.landlordPk !== callerPk) {
-        throw new Error('Only listing owner can update criteria');
-      }
-      version = existing.criteriaVersion + 1;
-    }
-
-    const cHash = this.computeCriteriaHash(
-      listingId,
-      version,
-      criteria.monthlyRent,
-      criteria.minMonthlyIncome,
-      criteria.maxRentToIncomeRatioBps,
-      criteria.minCreditScore
-    );
-
-    this.listings.set(listingId, {
-      ...criteria,
-      landlordPk: callerPk,
-      criteriaVersion: version,
-      criteriaHash: cHash,
-    });
-  }
-
-  proveQualification(
-    listingId: string,
-    applicationId: string,
-    currentTime: number,
-    witnesses: {
-      attestation: {
-        annualIncome: number;
-        creditScore: number;
-        employmentMonths: number;
-        backgroundClean: boolean;
-        subjectCommitment: string;
-        issuedAt: number;
-        expiresAt: number;
-      };
-      tenantSecret: string;
-      tenantSalt: string;
-    }
-  ) {
-    if (this.isPaused) throw new Error('Contract is currently paused');
-    if (!this.listings.has(listingId)) throw new Error('Listing does not exist');
-    const listing = this.listings.get(listingId);
-    if (!listing.active) throw new Error('Listing is not active');
-
-    const { attestation, tenantSecret, tenantSalt } = witnesses;
-
-    // 1. Time bounds check
-    if (currentTime < attestation.issuedAt) throw new Error('Attestation not yet valid');
-    if (currentTime > attestation.expiresAt) throw new Error('Attestation has expired');
-
-    // 2. Tenant commitment check
-    const expectedCommitment = createHash('sha256').update(`zkrent:tenant:${applicationId}:${tenantSalt}`).digest('hex');
-    if (attestation.subjectCommitment !== expectedCommitment) throw new Error('Commitment mismatch');
-
-    // 3. Multi-criteria verification (Division-Free Integer Math)
-    const minAnnualIncome = listing.minMonthlyIncome * 12;
-    if (attestation.annualIncome < minAnnualIncome) throw new Error('Income below requirement');
-
-    const rentRatioLhs = listing.monthlyRent * 120000;
-    const rentRatioRhs = attestation.annualIncome * listing.maxRentToIncomeRatioBps;
-    if (rentRatioLhs > rentRatioRhs) throw new Error('Rent-to-income ratio exceeds maximum allowed');
-
-    if (attestation.creditScore < listing.minCreditScore) throw new Error('Credit score below minimum');
-    if (attestation.employmentMonths < listing.minEmploymentMonths) throw new Error('Employment history insufficient');
-    if (listing.requireCleanBackground && !attestation.backgroundClean) throw new Error('Clean background check required');
-
-    // 4. Derive Coarse Tier
-    const primeRatioRhs = attestation.annualIncome * listing.primeMinIncomeRatioBps;
-    const isPrime = (rentRatioLhs <= primeRatioRhs) && (attestation.creditScore >= listing.primeMinCreditScore);
-    const tier = isPrime ? 1 : 0;
-
-    // 5. Anti-Replay Nullifier Verification
-    const nullifier = createHash('sha256').update(`zkrent:null:${tenantSecret}:${listingId}`).digest('hex');
-    if (this.nullifierSet.has(nullifier)) throw new Error('Applicant already proved qualification for this listing');
-    this.nullifierSet.add(nullifier);
-
-    // 6. Record Application Status On-Chain
-    const proofExpiresAt = currentTime + (30 * 86400);
-    this.applicationRecords.set(applicationId, {
-      listingId,
-      criteriaHash: listing.criteriaHash,
-      tenantCommitment: expectedCommitment,
-      tier,
-      lifecycle: 'Active',
-      verifiedAt: currentTime,
-      expiresAt: proofExpiresAt,
-    });
-
-    return { tier, nullifier, criteriaHash: listing.criteriaHash };
-  }
-
-  consumeQualification(callerSk: string, applicationId: string) {
-    if (!this.applicationRecords.has(applicationId)) throw new Error('Application not found');
-    const record = this.applicationRecords.get(applicationId);
-    if (record.lifecycle !== 'Active') throw new Error('Qualification is not in active state');
-
-    const listing = this.listings.get(record.listingId);
-    const callerPk = this.getPublicKey(callerSk);
-    if (callerPk !== listing.landlordPk) throw new Error('Only listing landlord can execute lease consumption');
-
-    record.lifecycle = 'Consumed';
-  }
-
-  setPaused(callerSk: string, paused: boolean) {
-    const callerPk = this.getPublicKey(callerSk);
-    if (callerPk !== this.adminPk) throw new Error('Only contract admin can pause');
-    this.isPaused = paused;
-  }
+function computeTenantCommitment(applicationId: Uint8Array, tenantSalt: Uint8Array): Uint8Array {
+  return cr.persistentHash(vec3Bytes32, [tenantPad, applicationId, tenantSalt]);
 }
 
-async function runContractTests() {
+function makeBytes32(seed: number): Uint8Array {
+  const b = new Uint8Array(32);
+  b[0] = seed & 0xff;
+  b[1] = (seed >> 8) & 0xff;
+  return b;
+}
+
+interface TestContractHarness {
+  contract: Contract<any>;
+  state: cr.ChargedState;
+  zswap: cr.ZswapLocalState;
+  adminPk: Uint8Array;
+}
+
+async function createHarness(witnesses: any, adminSeed = 99): Promise<TestContractHarness> {
+  const contract = new Contract(witnesses);
+  const zswap = cr.emptyZswapLocalState(makeBytes32(adminSeed));
+  const adminPk = makeBytes32(adminSeed);
+  const ctx = cr.createConstructorContext({}, zswap);
+  const init = await contract.initialState(ctx, adminPk);
+
+  return {
+    contract,
+    state: init.currentContractState.data,
+    zswap,
+    adminPk,
+  };
+}
+
+async function runTests() {
   console.log('\n══════════════════════════════════════════════════════════════');
-  console.log('  Contract Circuit Constraint & Lifecycle Test Suite (T1 - T8)');
+  console.log('  Compiled Compact Contract Circuit Test Suite (T1 - T8)');
+  console.log('  Target: contracts/managed/qualification/contract/index.js');
   console.log('══════════════════════════════════════════════════════════════\n');
 
-  const adminSk = 'admin-secret-key-001';
-  const landlordSk = 'landlord-secret-key-101';
-  const impostorSk = 'impostor-secret-key-999';
+  const landlordSk = makeBytes32(101);
+  const listingId = makeBytes32(1);
+  const tenantSecret = makeBytes32(202);
+  const tenantSalt = makeBytes32(303);
+  const appId1 = makeBytes32(10);
+  const commitment1 = computeTenantCommitment(appId1, tenantSalt);
 
-  const simulator = new QualificationContractSimulator(
-    createHash('sha256').update(`zkrent:pk:${adminSk}`).digest('hex')
-  );
-
-  const listingId = 'prop-ashton-14b';
-  const now = Math.floor(Date.now() / 1000);
-
-  // Setup listing
-  simulator.registerListingCriteria(landlordSk, listingId, {
-    monthlyRent: 2400,
-    minMonthlyIncome: 6000, // 72k/yr
-    maxRentToIncomeRatioBps: 3300, // 33%
-    minCreditScore: 650,
-    requireCleanBackground: true,
-    minEmploymentMonths: 12,
-    primeMinIncomeRatioBps: 2500, // 25% (~4x rent)
-    primeMinCreditScore: 750,
-    active: true,
-  });
-
+  // ---------------------------------------------------------------------------
+  // T1: Standard Qualification
+  // ---------------------------------------------------------------------------
   console.log('─── T1: Standard Qualification ───');
-  const appId1 = 'app-uuid-001';
-  const tenantSalt1 = 'salt-001';
-  const tenantSec1 = 'sec-001';
-  const comm1 = createHash('sha256').update(`zkrent:tenant:${appId1}:${tenantSalt1}`).digest('hex');
+  {
+    const witnesses = {
+      getAttestation: () => [{}, {
+        issuerPk: makeBytes32(999),
+        subjectCommitment: commitment1,
+        annualIncome: 75000n, // $75,000 / yr (~$6,250 / mo, > 3x $2000 rent)
+        creditScore: 680n,    // Above 650 min, below 750 prime
+        employmentMonths: 24n,
+        backgroundClean: true,
+        issuedAt: 1000n,
+        expiresAt: 5000n,
+      }],
+      getTenantSecret: () => [{}, tenantSecret],
+      getTenantSalt: () => [{}, tenantSalt],
+      getCallerSecret: () => [{}, landlordSk],
+    };
 
-  const resT1 = simulator.proveQualification(listingId, appId1, now, {
-    attestation: {
-      annualIncome: 92000,
-      creditScore: 680,
-      employmentMonths: 18,
-      backgroundClean: true,
-      subjectCommitment: comm1,
-      issuedAt: now - 3600,
-      expiresAt: now + 86400 * 30,
-    },
-    tenantSecret: tenantSec1,
-    tenantSalt: tenantSalt1,
-  });
+    const harness = await createHarness(witnesses);
 
-  assert(resT1.tier === 0, 'T1: Applicant qualifies for Standard Tier (0)');
-  assert(simulator.applicationRecords.get(appId1)?.lifecycle === 'Active', 'T1: Application record is Active');
+    // Landlord registers listing criteria
+    const regCtx = cr.createCircuitContext(
+      'registerListingCriteria',
+      cr.dummyContractAddress(),
+      harness.zswap.coinPublicKey,
+      harness.state,
+      {}
+    );
+    const regRes = await harness.contract.circuits.registerListingCriteria(
+      regCtx,
+      listingId,
+      2000n, // monthlyRent
+      6000n, // minMonthlyIncome
+      3300n, // maxRentToIncomeRatioBps (33.00%)
+      650n,  // minCreditScore
+      true,  // requireCleanBackground
+      12n,   // minEmploymentMonths
+      2500n, // primeMinIncomeRatioBps (25.00% = 4x rent)
+      750n,  // primeMinCreditScore
+      true   // active
+    );
 
+    // Tenant proves qualification at t = 2000s
+    const stateAfterReg = regRes.context.callContext.currentQueryContext.state;
+    const proveCtx = cr.createCircuitContext(
+      'proveQualification',
+      cr.dummyContractAddress(),
+      harness.zswap.coinPublicKey,
+      stateAfterReg,
+      {}
+    );
+
+    const proveRes = await harness.contract.circuits.proveQualification(
+      proveCtx,
+      listingId,
+      appId1,
+      2000n
+    );
+
+    const l = ledger(proveRes.context.callContext.currentQueryContext.state);
+    const rec = l.applicationRecords.lookup(appId1);
+
+    assert(rec.tier === 0n, 'T1: Applicant qualifies for Standard Tier (0)');
+    assert(rec.lifecycle === RecordLifecycle.Active, 'T1: Application record is Active on-chain');
+  }
+
+  // ---------------------------------------------------------------------------
+  // T2: Prime Qualification (High Earner)
+  // ---------------------------------------------------------------------------
   console.log('\n─── T2: Prime Qualification ───');
-  const appId2 = 'app-uuid-002';
-  const tenantSalt2 = 'salt-002';
-  const tenantSec2 = 'sec-002';
-  const comm2 = createHash('sha256').update(`zkrent:tenant:${appId2}:${tenantSalt2}`).digest('hex');
+  {
+    const appId2 = makeBytes32(20);
+    const commitment2 = computeTenantCommitment(appId2, tenantSalt);
 
-  const resT2 = simulator.proveQualification(listingId, appId2, now, {
-    attestation: {
-      annualIncome: 130000, // > 4x rent
-      creditScore: 780, // > 750
-      employmentMonths: 36,
-      backgroundClean: true,
-      subjectCommitment: comm2,
-      issuedAt: now - 3600,
-      expiresAt: now + 86400 * 30,
-    },
-    tenantSecret: tenantSec2,
-    tenantSalt: tenantSalt2,
-  });
+    const witnesses = {
+      getAttestation: () => [{}, {
+        issuerPk: makeBytes32(999),
+        subjectCommitment: commitment2,
+        annualIncome: 120000n, // $120,000 / yr (> 4x rent = 2500 bps)
+        creditScore: 780n,     // >= 750 prime
+        employmentMonths: 36n,
+        backgroundClean: true,
+        issuedAt: 1000n,
+        expiresAt: 5000n,
+      }],
+      getTenantSecret: () => [{}, tenantSecret],
+      getTenantSalt: () => [{}, tenantSalt],
+      getCallerSecret: () => [{}, landlordSk],
+    };
 
-  assert(resT2.tier === 1, 'T2: High-earner qualifies for Prime Tier (1)');
+    const harness = await createHarness(witnesses);
 
+    // Register listing
+    const regCtx = cr.createCircuitContext('registerListingCriteria', cr.dummyContractAddress(), harness.zswap.coinPublicKey, harness.state, {});
+    const regRes = await harness.contract.circuits.registerListingCriteria(regCtx, listingId, 2000n, 6000n, 3300n, 650n, true, 12n, 2500n, 750n, true);
+
+    // Prove qualification
+    const proveCtx = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, regRes.context.callContext.currentQueryContext.state, {});
+    const proveRes = await harness.contract.circuits.proveQualification(proveCtx, listingId, appId2, 2000n);
+
+    const l = ledger(proveRes.context.callContext.currentQueryContext.state);
+    const rec = l.applicationRecords.lookup(appId2);
+
+    assert(rec.tier === 1n, 'T2: High-earner qualifies for Prime Tier (1) on-chain');
+  }
+
+  // ---------------------------------------------------------------------------
+  // T3: Low Income & Rent-to-Income Failure Assertion
+  // ---------------------------------------------------------------------------
   console.log('\n─── T3: Low Income & Rent-to-Income Failure ───');
-  let t3Caught = false;
-  try {
-    simulator.proveQualification(listingId, 'app-fail-inc', now, {
-      attestation: {
-        annualIncome: 50000, // Less than 6000*12 = 72,000
-        creditScore: 720,
-        employmentMonths: 24,
-        backgroundClean: true,
-        subjectCommitment: createHash('sha256').update(`zkrent:tenant:app-fail-inc:salt-inc`).digest('hex'),
-        issuedAt: now - 3600,
-        expiresAt: now + 86400 * 30,
-      },
-      tenantSecret: 'sec-inc',
-      tenantSalt: 'salt-inc',
-    });
-  } catch (err: any) {
-    t3Caught = true;
-    assert(err.message.includes('Income below requirement'), 'T3: Threw constraint error on low income');
-  }
-  assert(t3Caught, 'T3: Ineligible tenant rejected without creating proof');
+  {
+    const appId3 = makeBytes32(30);
+    const commitment3 = computeTenantCommitment(appId3, tenantSalt);
 
+    const witnesses = {
+      getAttestation: () => [{}, {
+        issuerPk: makeBytes32(999),
+        subjectCommitment: commitment3,
+        annualIncome: 40000n, // $40k is below $72k annual requirement
+        creditScore: 720n,
+        employmentMonths: 24n,
+        backgroundClean: true,
+        issuedAt: 1000n,
+        expiresAt: 5000n,
+      }],
+      getTenantSecret: () => [{}, tenantSecret],
+      getTenantSalt: () => [{}, tenantSalt],
+      getCallerSecret: () => [{}, landlordSk],
+    };
+
+    const harness = await createHarness(witnesses);
+    const regCtx = cr.createCircuitContext('registerListingCriteria', cr.dummyContractAddress(), harness.zswap.coinPublicKey, harness.state, {});
+    const regRes = await harness.contract.circuits.registerListingCriteria(regCtx, listingId, 2000n, 6000n, 3300n, 650n, true, 12n, 2500n, 750n, true);
+
+    const proveCtx = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, regRes.context.callContext.currentQueryContext.state, {});
+
+    let threw = false;
+    try {
+      await harness.contract.circuits.proveQualification(proveCtx, listingId, appId3, 2000n);
+    } catch (e: any) {
+      threw = e.message.includes('Income below requirement') || e.message.includes('Rent-to-income ratio exceeds');
+    }
+    assert(threw, 'T3: Threw Compact assertion error on low income');
+    assert(threw, 'T3: Ineligible tenant rejected without creating proof');
+  }
+
+  // ---------------------------------------------------------------------------
+  // T4: Bad Credit & Background Check Failure Rejection
+  // ---------------------------------------------------------------------------
   console.log('\n─── T4: Bad Credit / Background Failure ───');
-  let t4Caught = false;
-  try {
-    simulator.proveQualification(listingId, 'app-fail-bg', now, {
-      attestation: {
-        annualIncome: 95000,
-        creditScore: 680,
-        employmentMonths: 24,
-        backgroundClean: false, // Failed criminal background
-        subjectCommitment: createHash('sha256').update(`zkrent:tenant:app-fail-bg:salt-bg`).digest('hex'),
-        issuedAt: now - 3600,
-        expiresAt: now + 86400 * 30,
-      },
-      tenantSecret: 'sec-bg',
-      tenantSalt: 'salt-bg',
-    });
-  } catch (err: any) {
-    t4Caught = true;
-    assert(err.message.includes('Clean background check required'), 'T4: Threw constraint error on criminal background');
-  }
-  assert(t4Caught, 'T4: Background failure rejected');
+  {
+    const appId4 = makeBytes32(40);
+    const commitment4 = computeTenantCommitment(appId4, tenantSalt);
 
+    const witnesses = {
+      getAttestation: () => [{}, {
+        issuerPk: makeBytes32(999),
+        subjectCommitment: commitment4,
+        annualIncome: 90000n,
+        creditScore: 720n,
+        employmentMonths: 24n,
+        backgroundClean: false, // Fails clean background requirement
+        issuedAt: 1000n,
+        expiresAt: 5000n,
+      }],
+      getTenantSecret: () => [{}, tenantSecret],
+      getTenantSalt: () => [{}, tenantSalt],
+      getCallerSecret: () => [{}, landlordSk],
+    };
+
+    const harness = await createHarness(witnesses);
+    const regCtx = cr.createCircuitContext('registerListingCriteria', cr.dummyContractAddress(), harness.zswap.coinPublicKey, harness.state, {});
+    const regRes = await harness.contract.circuits.registerListingCriteria(regCtx, listingId, 2000n, 6000n, 3300n, 650n, true, 12n, 2500n, 750n, true);
+
+    const proveCtx = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, regRes.context.callContext.currentQueryContext.state, {});
+
+    let threw = false;
+    try {
+      await harness.contract.circuits.proveQualification(proveCtx, listingId, appId4, 2000n);
+    } catch (e: any) {
+      threw = e.message.includes('Clean background check required');
+    }
+    assert(threw, 'T4: Threw Compact assertion error on failed background check');
+    assert(threw, 'T4: Background failure rejected by compiled circuit');
+  }
+
+  // ---------------------------------------------------------------------------
+  // T5: Replay Prevention via Nullifiers
+  // ---------------------------------------------------------------------------
   console.log('\n─── T5: Replay Prevention via Nullifiers ───');
-  let t5Caught = false;
-  try {
-    // Attempt to reuse tenantSec1 on a second application for same listing
-    simulator.proveQualification(listingId, 'app-replay-attempt', now, {
-      attestation: {
-        annualIncome: 92000,
-        creditScore: 680,
-        employmentMonths: 18,
-        backgroundClean: true,
-        subjectCommitment: createHash('sha256').update(`zkrent:tenant:app-replay-attempt:salt-replay`).digest('hex'),
-        issuedAt: now - 3600,
-        expiresAt: now + 86400 * 30,
-      },
-      tenantSecret: tenantSec1, // Already consumed in T1!
-      tenantSalt: 'salt-replay',
-    });
-  } catch (err: any) {
-    t5Caught = true;
-    assert(err.message.includes('Applicant already proved qualification'), 'T5: Duplicate nullifier rejected on-chain');
-  }
-  assert(t5Caught, 'T5: Replay attack blocked');
+  {
+    const appId5a = makeBytes32(51);
+    const appId5b = makeBytes32(52);
+    let currentAppId = appId5a;
 
+    const witnesses = {
+      getAttestation: () => [{}, {
+        issuerPk: makeBytes32(999),
+        subjectCommitment: computeTenantCommitment(currentAppId, tenantSalt),
+        annualIncome: 85000n,
+        creditScore: 710n,
+        employmentMonths: 24n,
+        backgroundClean: true,
+        issuedAt: 1000n,
+        expiresAt: 5000n,
+      }],
+      getTenantSecret: () => [{}, tenantSecret],
+      getTenantSalt: () => [{}, tenantSalt],
+      getCallerSecret: () => [{}, landlordSk],
+    };
+
+    const harness = await createHarness(witnesses);
+    const regCtx = cr.createCircuitContext('registerListingCriteria', cr.dummyContractAddress(), harness.zswap.coinPublicKey, harness.state, {});
+    const regRes = await harness.contract.circuits.registerListingCriteria(regCtx, listingId, 2000n, 6000n, 3300n, 650n, true, 12n, 2500n, 750n, true);
+
+    // First proof succeeds
+    const proveCtx1 = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, regRes.context.callContext.currentQueryContext.state, {});
+    const proveRes1 = await harness.contract.circuits.proveQualification(proveCtx1, listingId, appId5a, 2000n);
+
+    // Second proof with same attestation & tenantSecret for same listing MUST fail with duplicate nullifier
+    currentAppId = appId5b;
+    const proveCtx2 = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, proveRes1.context.callContext.currentQueryContext.state, {});
+
+    let threw = false;
+    try {
+      await harness.contract.circuits.proveQualification(proveCtx2, listingId, appId5b, 2000n);
+    } catch (e: any) {
+      threw = e.message.includes('already proved qualification');
+    }
+    assert(threw, 'T5: Duplicate nullifier rejected on-chain by compiled circuit');
+    assert(threw, 'T5: Replay attack blocked');
+  }
+
+  // ---------------------------------------------------------------------------
+  // T6: Application Squatting Defense via Tenant Commitment
+  // ---------------------------------------------------------------------------
   console.log('\n─── T6: Application Squatting Defense ───');
-  let t6Caught = false;
-  try {
-    // Attacker attempts to prove for appId1 using their own salt
-    simulator.proveQualification(listingId, appId1, now, {
-      attestation: {
-        annualIncome: 90000,
-        creditScore: 700,
-        employmentMonths: 20,
-        backgroundClean: true,
-        subjectCommitment: 'fraudulent-commitment-hash',
-        issuedAt: now - 3600,
-        expiresAt: now + 86400 * 30,
-      },
-      tenantSecret: 'attacker-secret',
-      tenantSalt: 'attacker-salt',
-    });
-  } catch (err: any) {
-    t6Caught = true;
-    assert(err.message.includes('Commitment mismatch'), 'T6: Attacker rejected for mismatched commitment');
-  }
-  assert(t6Caught, 'T6: Application squatting blocked');
+  {
+    const targetAppId = makeBytes32(60);
+    const legitSalt = makeBytes32(61);
+    const attackerSalt = makeBytes32(62);
+    const legitCommitment = computeTenantCommitment(targetAppId, legitSalt);
 
+    // Attacker tries to submit proof for targetAppId using attacker's salt
+    const witnesses = {
+      getAttestation: () => [{}, {
+        issuerPk: makeBytes32(999),
+        subjectCommitment: legitCommitment, // Bound to legitSalt
+        annualIncome: 95000n,
+        creditScore: 740n,
+        employmentMonths: 30n,
+        backgroundClean: true,
+        issuedAt: 1000n,
+        expiresAt: 5000n,
+      }],
+      getTenantSecret: () => [{}, tenantSecret],
+      getTenantSalt: () => [{}, attackerSalt], // Mismatched salt!
+      getCallerSecret: () => [{}, landlordSk],
+    };
+
+    const harness = await createHarness(witnesses);
+    const regCtx = cr.createCircuitContext('registerListingCriteria', cr.dummyContractAddress(), harness.zswap.coinPublicKey, harness.state, {});
+    const regRes = await harness.contract.circuits.registerListingCriteria(regCtx, listingId, 2000n, 6000n, 3300n, 650n, true, 12n, 2500n, 750n, true);
+
+    const proveCtx = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, regRes.context.callContext.currentQueryContext.state, {});
+
+    let threw = false;
+    try {
+      await harness.contract.circuits.proveQualification(proveCtx, listingId, targetAppId, 2000n);
+    } catch (e: any) {
+      threw = e.message.includes('Commitment mismatch');
+    }
+    assert(threw, 'T6: Attacker rejected for mismatched commitment');
+    assert(threw, 'T6: Application squatting blocked');
+  }
+
+  // ---------------------------------------------------------------------------
+  // T7: Expired Attestation Enforcement
+  // ---------------------------------------------------------------------------
   console.log('\n─── T7: Expired Attestation Enforcement ───');
-  let t7Caught = false;
-  try {
-    const expiredTime = now - 100;
-    simulator.proveQualification(listingId, 'app-expired', now, {
-      attestation: {
-        annualIncome: 90000,
-        creditScore: 700,
-        employmentMonths: 20,
+  {
+    const appId7 = makeBytes32(70);
+    const commitment7 = computeTenantCommitment(appId7, tenantSalt);
+
+    const witnesses = {
+      getAttestation: () => [{}, {
+        issuerPk: makeBytes32(999),
+        subjectCommitment: commitment7,
+        annualIncome: 90000n,
+        creditScore: 730n,
+        employmentMonths: 24n,
         backgroundClean: true,
-        subjectCommitment: createHash('sha256').update(`zkrent:tenant:app-expired:salt-exp`).digest('hex'),
-        issuedAt: now - 86400 * 60,
-        expiresAt: expiredTime, // Expired
-      },
-      tenantSecret: 'sec-exp',
-      tenantSalt: 'salt-exp',
-    });
-  } catch (err: any) {
-    t7Caught = true;
-    assert(err.message.includes('Attestation has expired'), 'T7: Expired attestation rejected by time assertion');
-  }
-  assert(t7Caught, 'T7: Stale credential blocked');
+        issuedAt: 1000n,
+        expiresAt: 3000n, // Expired at t = 4000
+      }],
+      getTenantSecret: () => [{}, tenantSecret],
+      getTenantSalt: () => [{}, tenantSalt],
+      getCallerSecret: () => [{}, landlordSk],
+    };
 
+    const harness = await createHarness(witnesses);
+    const regCtx = cr.createCircuitContext('registerListingCriteria', cr.dummyContractAddress(), harness.zswap.coinPublicKey, harness.state, {});
+    const regRes = await harness.contract.circuits.registerListingCriteria(regCtx, listingId, 2000n, 6000n, 3300n, 650n, true, 12n, 2500n, 750n, true);
+
+    const proveCtx = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, regRes.context.callContext.currentQueryContext.state, {});
+
+    let threw = false;
+    try {
+      await harness.contract.circuits.proveQualification(proveCtx, listingId, appId7, 4000n); // t=4000 > expiresAt=3000
+    } catch (e: any) {
+      threw = e.message.includes('Attestation has expired');
+    }
+    assert(threw, 'T7: Expired attestation rejected by time assertion');
+    assert(threw, 'T7: Stale credential blocked');
+  }
+
+  // ---------------------------------------------------------------------------
+  // T8: Unauthorized Listing Modification Protection
+  // ---------------------------------------------------------------------------
   console.log('\n─── T8: Unauthorized Listing Modification Protection ───');
-  let t8Caught = false;
-  try {
-    // Impostor tries to edit listingId criteria
-    simulator.registerListingCriteria(impostorSk, listingId, {
-      monthlyRent: 500, // Maliciously low rent
-      minMonthlyIncome: 1000,
-      maxRentToIncomeRatioBps: 5000,
-      minCreditScore: 500,
-      requireCleanBackground: false,
-      minEmploymentMonths: 0,
-      primeMinIncomeRatioBps: 1000,
-      primeMinCreditScore: 600,
-      active: true,
-    });
-  } catch (err: any) {
-    t8Caught = true;
-    assert(err.message.includes('Only listing owner can update criteria'), 'T8: Impostor rejected from updating criteria');
-  }
-  assert(t8Caught, 'T8: Landlord access control verified');
+  {
+    const impostorSk = makeBytes32(888);
 
+    const witnesses = {
+      getAttestation: () => [{}, {} as any],
+      getTenantSecret: () => [{}, tenantSecret],
+      getTenantSalt: () => [{}, tenantSalt],
+      getCallerSecret: () => [{}, landlordSk],
+    };
+
+    const harness = await createHarness(witnesses);
+
+    // Initial registration by landlordSk
+    const regCtx1 = cr.createCircuitContext('registerListingCriteria', cr.dummyContractAddress(), harness.zswap.coinPublicKey, harness.state, {});
+    const regRes1 = await harness.contract.circuits.registerListingCriteria(regCtx1, listingId, 2000n, 6000n, 3300n, 650n, true, 12n, 2500n, 750n, true);
+
+    // Impostor tries to modify listing criteria
+    const impostorWitnesses = {
+      ...witnesses,
+      getCallerSecret: () => [{}, impostorSk],
+    };
+    const impostorContract = new Contract(impostorWitnesses);
+
+    const regCtx2 = cr.createCircuitContext('registerListingCriteria', cr.dummyContractAddress(), harness.zswap.coinPublicKey, regRes1.context.callContext.currentQueryContext.state, {});
+
+    let threw = false;
+    try {
+      await impostorContract.circuits.registerListingCriteria(regCtx2, listingId, 1000n, 3000n, 5000n, 500n, false, 0n, 4000n, 600n, true);
+    } catch (e: any) {
+      threw = e.message.includes('Only listing owner can update criteria');
+    }
+    assert(threw, 'T8: Impostor rejected from updating criteria');
+    assert(threw, 'T8: Landlord access control verified on-chain');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Lifecycle: Lease Consumption & Revocation
+  // ---------------------------------------------------------------------------
   console.log('\n─── Lifecycle: Lease Consumption ───');
-  simulator.consumeQualification(landlordSk, appId1);
-  assert(simulator.applicationRecords.get(appId1)?.lifecycle === 'Consumed', 'Lease signing transitions record to Consumed');
+  {
+    const appIdLife = makeBytes32(90);
+    const commitmentLife = computeTenantCommitment(appIdLife, tenantSalt);
 
-  let reConsumeCaught = false;
-  try {
-    simulator.consumeQualification(landlordSk, appId1);
-  } catch (err: any) {
-    reConsumeCaught = true;
-    assert(err.message.includes('Qualification is not in active state'), 'Cannot consume an already consumed qualification');
+    const witnesses = {
+      getAttestation: () => [{}, {
+        issuerPk: makeBytes32(999),
+        subjectCommitment: commitmentLife,
+        annualIncome: 80000n,
+        creditScore: 700n,
+        employmentMonths: 24n,
+        backgroundClean: true,
+        issuedAt: 1000n,
+        expiresAt: 5000n,
+      }],
+      getTenantSecret: () => [{}, tenantSecret],
+      getTenantSalt: () => [{}, tenantSalt],
+      getCallerSecret: () => [{}, landlordSk],
+    };
+
+    const harness = await createHarness(witnesses);
+    const regCtx = cr.createCircuitContext('registerListingCriteria', cr.dummyContractAddress(), harness.zswap.coinPublicKey, harness.state, {});
+    const regRes = await harness.contract.circuits.registerListingCriteria(regCtx, listingId, 2000n, 6000n, 3300n, 650n, true, 12n, 2500n, 750n, true);
+
+    const proveCtx = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, regRes.context.callContext.currentQueryContext.state, {});
+    const proveRes = await harness.contract.circuits.proveQualification(proveCtx, listingId, appIdLife, 2000n);
+
+    // Landlord signs lease -> consumes qualification
+    const consumeCtx1 = cr.createCircuitContext('consumeQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, proveRes.context.callContext.currentQueryContext.state, {});
+    const consumeRes1 = await harness.contract.circuits.consumeQualification(consumeCtx1, appIdLife);
+
+    const l = ledger(consumeRes1.context.callContext.currentQueryContext.state);
+    const consumedRec = l.applicationRecords.lookup(appIdLife);
+    assert(consumedRec.lifecycle === RecordLifecycle.Consumed, 'Lease signing transitions record to Consumed');
+
+    // Attempting to consume again should fail
+    const consumeCtx2 = cr.createCircuitContext('consumeQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, consumeRes1.context.callContext.currentQueryContext.state, {});
+    let doubleThrew = false;
+    try {
+      await harness.contract.circuits.consumeQualification(consumeCtx2, appIdLife);
+    } catch (e: any) {
+      doubleThrew = e.message.includes('not in active state') || e.message.includes('Qualification is not in active state');
+    }
+    assert(doubleThrew, 'Cannot consume an already consumed qualification');
+    assert(doubleThrew, 'Double-consumption prevented');
   }
-  assert(reConsumeCaught, 'Double-consumption prevented');
 
-  console.log(`\n══════════════════════════════════════════════════════════════`);
-  console.log(`  Contract Test Results: ${passed} passed, ${failed} failed`);
-  console.log(`══════════════════════════════════════════════════════════════\n`);
+  console.log('\n══════════════════════════════════════════════════════════════');
+  console.log(`  Compiled Contract Test Results: ${passed} passed, ${failed} failed`);
+  console.log('══════════════════════════════════════════════════════════════\n');
 
   if (failed > 0) {
     process.exit(1);
   }
 }
 
-runContractTests().catch((err) => {
-  console.error('Unhandled contract test error:', err);
+runTests().catch((err) => {
+  console.error('Fatal test error:', err);
   process.exit(1);
 });

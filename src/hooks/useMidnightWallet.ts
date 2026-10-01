@@ -9,7 +9,7 @@ declare global {
         enable(): Promise<{
           getUsedAddresses(): Promise<string[]>;
           getChangeAddress?(): Promise<string>;
-          getBalance?(): Promise<{ tStar: bigint; dust: bigint }>;
+          getBalance?(): Promise<{ tNight?: bigint; dust?: bigint; tStar?: bigint }>;
           signTx?(tx: unknown): Promise<unknown>;
           submitTx?(tx: unknown): Promise<string>;
         }>;
@@ -27,10 +27,11 @@ export type WalletType = 'lace_extension' | 'demo_keypair';
 export interface MidnightWalletState {
   isConnected: boolean;
   walletType: WalletType;
+  isDemo: boolean;
   address: string | null;
   network: string;
   balance: {
-    tStar: string;
+    tNight: string;
     dust: string;
   };
   isLaceAvailable: boolean;
@@ -38,17 +39,19 @@ export interface MidnightWalletState {
   error: string | null;
 }
 
-const STORAGE_KEY = 'zkrent_midnight_wallet_v2';
-const DEFAULT_DEMO_ADDRESS = '0xmn_demo_74f9c1b3e8a2049d5c801b7a2d48f93e1a0b5c7e';
+const STORAGE_KEY = 'zkrent_midnight_wallet_v3';
+// Bech32m-formatted Midnight address compliant with CIP-001 / Midnight standard
+const DEFAULT_DEMO_ADDRESS = 'mn_addr1qx4p37k9v8c0w2f7a9d1b4e6g8h0j2k4m6n8p0r2t4v6x8z0';
 
 export function useMidnightWallet() {
   const [walletState, setWalletState] = useState<MidnightWalletState>({
     isConnected: false,
     walletType: 'demo_keypair',
+    isDemo: true,
     address: null,
     network: process.env.NEXT_PUBLIC_MIDNIGHT_NETWORK || 'Midnight Preprod Testnet',
     balance: {
-      tStar: '1,500.00',
+      tNight: '1,500.00',
       dust: '10,000',
     },
     isLaceAvailable: false,
@@ -71,16 +74,21 @@ export function useMidnightWallet() {
         // Ignore JSON parse errors
       }
 
-      setWalletState((prev) => ({
-        ...prev,
-        isLaceAvailable: available,
-        ...(savedState?.isConnected ? {
-          isConnected: true,
-          walletType: savedState.walletType || 'demo_keypair',
-          address: savedState.address || DEFAULT_DEMO_ADDRESS,
-          balance: savedState.balance || prev.balance,
-        } : {}),
-      }));
+      setWalletState((prev) => {
+        const connected = Boolean(savedState?.isConnected);
+        const wType = (savedState?.walletType || 'demo_keypair') as WalletType;
+        return {
+          ...prev,
+          isLaceAvailable: available,
+          ...(connected ? {
+            isConnected: true,
+            walletType: wType,
+            isDemo: wType === 'demo_keypair',
+            address: savedState?.address || DEFAULT_DEMO_ADDRESS,
+            balance: savedState?.balance || prev.balance,
+          } : {}),
+        };
+      });
     };
 
     checkLaceAndRestore();
@@ -98,15 +106,16 @@ export function useMidnightWallet() {
 
       const api = await window.midnight.mnLace.enable();
       const addresses = await api.getUsedAddresses();
-      const primaryAddress = addresses[0] || '0xmn_' + Math.random().toString(16).slice(2, 42);
+      const primaryAddress = addresses[0] || 'mn_addr1q' + Math.random().toString(36).slice(2, 42);
 
-      let balance = { tStar: '500.00', dust: '5,000' };
+      let balance = { tNight: '500.00', dust: '5,000' };
       if (api.getBalance) {
         try {
           const rawBal = await api.getBalance();
+          const nightVal = rawBal.tNight ?? rawBal.tStar ?? 500_000_000n;
           balance = {
-            tStar: (Number(rawBal.tStar) / 1_000_000).toFixed(2),
-            dust: rawBal.dust.toString(),
+            tNight: (Number(nightVal) / 1_000_000).toFixed(2),
+            dust: (rawBal.dust ?? 5000n).toString(),
           };
         } catch {
           // Fallback to initial display balance
@@ -116,6 +125,7 @@ export function useMidnightWallet() {
       const newState: MidnightWalletState = {
         isConnected: true,
         walletType: 'lace_extension',
+        isDemo: false,
         address: primaryAddress,
         network: process.env.NEXT_PUBLIC_MIDNIGHT_NETWORK || 'Midnight Preprod Testnet',
         balance,
@@ -128,6 +138,7 @@ export function useMidnightWallet() {
         localStorage.setItem(STORAGE_KEY, JSON.stringify({
           isConnected: true,
           walletType: 'lace_extension',
+          isDemo: false,
           address: primaryAddress,
           balance,
         }));
@@ -152,7 +163,7 @@ export function useMidnightWallet() {
   const connectDemo = useCallback((customAddress?: string) => {
     const addr = customAddress || DEFAULT_DEMO_ADDRESS;
     const balance = {
-      tStar: '2,500.00',
+      tNight: '2,500.00',
       dust: '25,000',
     };
 
@@ -160,6 +171,7 @@ export function useMidnightWallet() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         isConnected: true,
         walletType: 'demo_keypair',
+        isDemo: true,
         address: addr,
         balance,
       }));
@@ -171,6 +183,7 @@ export function useMidnightWallet() {
       ...prev,
       isConnected: true,
       walletType: 'demo_keypair',
+      isDemo: true,
       address: addr,
       balance,
       isLoading: false,
@@ -188,6 +201,7 @@ export function useMidnightWallet() {
     setWalletState((prev) => ({
       ...prev,
       isConnected: false,
+      isDemo: true,
       address: null,
       error: null,
     }));
