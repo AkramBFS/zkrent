@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 import {
   type CoinPublicKey,
   sampleSigningKey,
@@ -247,4 +245,3 @@ main().catch((err) => {
   console.error('\n💥 FATAL DEPLOYMENT ERROR:');
   console.error(err); // This will print the actual reason it crashed!
 });
->>>>>>> 61cda050016bfbfc9f1eec0307d2a8afb41cd716

@@ -1,8 +1,10 @@
 {
-    "accounts": [
-        {
-            "name": "Deploy",
-            "mnemonic": "mn_addr_preprod1qhe3r3n2vfj09sczwrcz24wtu347vuk3kg7xte8ge7sy9c746cysfp0f7s"
-        }
-    ]
+  "$comment": "Template only - DO NOT commit real private keys or mnemonic phrases. For local deployments, set MIDNIGHT_DEPLOY_SEED in .env.local.",
+  "accounts": [
+    {
+      "name": "Local Devnet Deployer (Sample)",
+      "seedHex": "0000000000000000000000000000000000000000000000000000000000000001",
+      "sampleTestnetAddress": "mn_addr_preprod1qhe3r3n2vfj09sczwrcz24wtu347vuk3kg7xte8ge7sy9c746cysfp0f7s"
+    }
+  ]
 }

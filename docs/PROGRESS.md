@@ -17,3 +17,36 @@ This log tracks real changes made to the ZkRent codebase across master plan phas
   - `docs/PROGRESS.md`: Running log of architectural changes and milestones.
   - `docs/DECISIONS.md`: Architectural Decision Records (ADRs).
 - **Refined Master Plan**: Prioritized work breakdown established for Phases 1 through 7.
+
+---
+
+## Phase 1: Unblock and Stabilize (Completed)
+
+- **Build & TypeScript (`npm run build`, `npm run typecheck`)**:
+  - Excluded `midnight-skills` and `.agents` in `tsconfig.json` to prevent ambient type pollution from nested node_modules.
+  - Next.js 16.3.3 production build (`npm run build`) runs cleanly with Turbopack, generating all 31 routes statically.
+  - `npm run typecheck` passes with 0 errors across the application.
+- **ESLint (`npm run lint`)**:
+  - Configured `eslint.config.mjs` with global ignores (`.agents/**`, `midnight-skills/**`, `contracts/**`, `scripts/**`, `docs/**`).
+  - Fixed React 19 hook cascading render violation in `src/components/motion/motion.tsx`.
+  - `npm run lint` exits 0 with 0 errors (196 stylistic warnings).
+- **Merge Conflict Resolution**:
+  - Cleaned unresolved git merge conflict markers in `scripts/deploy.ts`.
+- **Prisma & Database Source of Truth**:
+  - Replaced broken multi-provider / incomplete `prisma/schema.prisma` with canonical PostgreSQL schema matching application domain models (`User`, `Property`, `Application`, `Payment`, `Verification`).
+  - Standardized PascalCase model naming with camelCase fields mapped to snake_case Postgres tables via `@@map` and `@map`.
+  - Replaced legacy `prisma7.config.ts` with standard Prisma 7 `prisma.config.ts`.
+  - Generated Prisma Client to `src/generated/prisma`.
+  - Updated fallback database connection string in `scripts/migrate.js`, `scripts/seed.js`, and `src/lib/prisma.ts` to `postgres:postgres@localhost:5432/zkrent`.
+- **Test Suite (`npm test`)**:
+  - Created unified cross-platform test runner `scripts/run-tests.js`.
+  - Verified test suite: 49/49 unit tests pass (28/28 OCR parser tests, 21/21 Midnight prover simulator tests).
+  - Added test, typecheck, database, and contract deployment scripts to `package.json`.
+- **Infrastructure & Secrets Hygiene**:
+  - Removed obsolete scratch and dead files (`src/lib/midnight/proof.ts`, `.tmp-config-probe.mjs`, `.tmp-deploy-repro.mjs`, `.tmp-wallet-check.mjs`, `deploy-output.txt`).
+  - Sanitized `accounts.json` into a documented template with instructions.
+  - Created comprehensive `.env.example` documenting all runtime variables and defaults.
+  - Created centralized configuration validator in `src/lib/config.ts`.
+  - Consolidated Docker compose environment into a single `docker-compose.yml` (Postgres + Midnight proof-server, node, indexer) and removed redundant `compose.yml` and `proof-server.yml`.
+  - Created `.github/workflows/ci.yml` for automated lint, typecheck, build, and test verification.
+

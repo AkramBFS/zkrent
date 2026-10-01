@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master-plan, testing]
+  pull_request:
+    branches: [main, master-plan, testing]
+
+jobs:
+  validate:
+    name: Lint, Typecheck, Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Type Check
+        run: npm run typecheck
+
+      - name: Run Test Suite
+        run: npm test
+
+      - name: Build Next.js Application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          AUTH_SECRET: ci-dummy-auth-secret-for-testing-only-32bytes
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/zkrent
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/zkrent

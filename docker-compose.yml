@@ -1,13 +1,41 @@
-# ZkRent — local Midnight devnet stack
-# Adapted from midnightntwrk/midnight-local-dev standalone.yml (official).
-#
-# Full stack:   docker compose up -d
-# Tear down:    docker compose down
-# Logs:         docker compose logs -f
+# ==============================================================================
+# ZkRent — Local Development & Infrastructure Stack
+# ==============================================================================
+# Commands:
+#   Database only:       docker compose up -d postgres
+#   Full Devnet Stack:   docker compose up -d
+#   Stop all:            docker compose down
+#   View logs:           docker compose logs -f
+# ==============================================================================
 
 services:
+  # ----------------------------------------------------------------------------
+  # PostgreSQL Database (Standard Local Credentials)
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: 'postgres:16-alpine'
+    container_name: 'zkrent-postgres'
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:5432:5432'
+    environment:
+      POSTGRES_USER: 'postgres'
+      POSTGRES_PASSWORD: 'postgres'
+      POSTGRES_DB: 'zkrent'
+    volumes:
+      - zkrent-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d zkrent']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ----------------------------------------------------------------------------
+  # Midnight Proof Server
+  # ----------------------------------------------------------------------------
   proof-server:
-    image: midnightntwrk/proof-server:8.0.3
+    image: 'midnightntwrk/proof-server:8.0.3'
+    container_name: 'zkrent-proof-server'
     command: ['midnight-proof-server', '-v']
     ports:
       - '127.0.0.1:6300:6300'
@@ -20,8 +48,30 @@ services:
       retries: 20
       start_period: 10s
 
+  # ----------------------------------------------------------------------------
+  # Midnight Devnet Node
+  # ----------------------------------------------------------------------------
+  node:
+    image: 'midnightntwrk/midnight-node:0.22.5'
+    container_name: 'zkrent-node'
+    ports:
+      - '127.0.0.1:9944:9944'
+    environment:
+      CFG_PRESET: 'dev'
+      SIDECHAIN_BLOCK_BENEFICIARY: '04bcf7ad3be7a5c790460be82a713af570f22e0f801f6659ab8e84a52be6969e'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9944/health']
+      interval: 2s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  # ----------------------------------------------------------------------------
+  # Midnight Standalone GraphQL Indexer
+  # ----------------------------------------------------------------------------
   indexer:
-    image: midnightntwrk/indexer-standalone:4.0.2
+    image: 'midnightntwrk/indexer-standalone:4.0.2'
+    container_name: 'zkrent-indexer'
     ports:
       - '127.0.0.1:8088:8088'
     environment:
@@ -42,16 +92,6 @@ services:
       node:
         condition: service_healthy
 
-  node:
-    image: midnightntwrk/midnight-node:0.22.5
-    ports:
-      - '127.0.0.1:9944:9944'
-    environment:
-      CFG_PRESET: 'dev'
-      SIDECHAIN_BLOCK_BENEFICIARY: '04bcf7ad3be7a5c790460be82a713af570f22e0f801f6659ab8e84a52be6969e'
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:9944/health']
-      interval: 2s
-      timeout: 5s
-      retries: 20
-      start_period: 20s
+volumes:
+  zkrent-pgdata:
+    name: zkrent-pgdata

@@ -7,19 +7,27 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/run-tests.js",
+    "test:ocr": "node node_modules/tsx/dist/cli.mjs scripts/test-ocr-parser.ts",
+    "test:prover": "node node_modules/tsx/dist/cli.mjs scripts/test-midnight-prover.ts",
+    "db:migrate": "node scripts/migrate.js",
+    "db:seed": "node scripts/seed.js",
+    "db:generate": "prisma generate",
+    "deploy:contract": "node node_modules/tsx/dist/cli.mjs scripts/deploy.ts"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.19.0",
-    "@midnight-ntwrk/ledger-v8": "8.0.3",
+    "@midnight-ntwrk/ledger-v8": "^8.0.3",
     "@midnight-ntwrk/midnight-js-contracts": "4.0.4",
-    "@midnight-ntwrk/onchain-runtime-v3": "3.1.0",
     "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.0.4",
     "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.0.4",
     "@midnight-ntwrk/midnight-js-level-private-state-provider": "4.0.4",
     "@midnight-ntwrk/midnight-js-network-id": "4.0.4",
     "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.0.4",
     "@midnight-ntwrk/midnight-js-types": "4.0.4",
+    "@midnight-ntwrk/onchain-runtime-v3": "3.1.0",
     "@midnight-ntwrk/testkit-js": "4.0.4",
     "@midnight-ntwrk/wallet-sdk-facade": "3.0.0",
     "@prisma/adapter-pg": "^7.10.0",
@@ -62,6 +70,7 @@
     "eslint-config-next": "16.3.3",
     "prisma": "^7.10.0",
     "tailwindcss": "^4",
+    "tsx": "^4.19.3",
     "typescript": "^5"
   }
 }

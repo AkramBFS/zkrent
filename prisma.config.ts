@@ -8,8 +8,12 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    seed: "node scripts/seed.js",
   },
   datasource: {
-    url: process.env["DIRECT_URL"] || "postgresql://postgres:password@localhost:5432/zkrent",
+    url:
+      process.env["DATABASE_URL"] ||
+      process.env["DIRECT_URL"] ||
+      "postgresql://postgres:postgres@localhost:5432/zkrent",
   },
 });

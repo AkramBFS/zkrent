@@ -255,41 +255,36 @@ export function AnimatedNumber({
 
   useEffect(() => {
     if (prefersReduced) {
-      setDisplayValue(value);
-      return;
-    }
-
-    let start = 0;
-    const end = value;
-    if (start === end) {
-      setDisplayValue(end);
       return;
     }
 
     const startTime = performance.now();
     const durationMs = duration * 1000;
+    let rafId: number;
 
     const frame = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / durationMs, 1);
       // Easing out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(start + (end - start) * eased);
+      const current = Math.round(value * eased);
       setDisplayValue(current);
 
       if (progress < 1) {
-        requestAnimationFrame(frame);
+        rafId = requestAnimationFrame(frame);
       }
     };
 
-    const rafId = requestAnimationFrame(frame);
+    rafId = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(rafId);
   }, [value, duration, prefersReduced]);
+
+  const outputValue = prefersReduced ? value : displayValue;
 
   return (
     <span className={className}>
       {prefix}
-      {displayValue.toLocaleString()}
+      {outputValue.toLocaleString()}
       {suffix}
     </span>
   );
