@@ -49,3 +49,7 @@ next-env.d.ts
 contracts/**/*.bzk
 contracts/**/*.json
 !contracts/**/*.compact
+
+#Agents
+.agents
+midnight-skills
