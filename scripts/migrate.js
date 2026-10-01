@@ -1,7 +1,10 @@
-const { Client } = require('pg');
-require('dotenv').config({ path: '.env.local' });
-require('dotenv').config();
+import pg from 'pg';
+import dotenv from 'dotenv';
 
+dotenv.config({ path: '.env.local' });
+dotenv.config();
+
+const { Client } = pg;
 const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL || 'postgresql://postgres:postgres@localhost:5432/zkrent';
 
 async function migrate() {

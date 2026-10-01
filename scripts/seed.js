@@ -1,8 +1,11 @@
-const { Client } = require('pg');
-const bcrypt = require('bcryptjs');
-require('dotenv').config({ path: '.env.local' });
-require('dotenv').config();
+import pg from 'pg';
+import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
 
+dotenv.config({ path: '.env.local' });
+dotenv.config();
+
+const { Client } = pg;
 const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL || 'postgresql://postgres:postgres@localhost:5432/zkrent';
 
 async function seed() {

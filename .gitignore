@@ -53,3 +53,6 @@ contracts/**/*.json
 #Agents
 .agents
 midnight-skills
+
+# Local database
+/.pgdata
