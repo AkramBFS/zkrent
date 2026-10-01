@@ -104,6 +104,11 @@ export async function GET(req: NextRequest) {
         requireBackground: p.requireBackground,
         requireEmployment: p.requireEmployment,
         verificationFee: p.verificationFee,
+        maxRentToIncomeRatioBps: p.maxRentToIncomeRatioBps,
+        minCreditScore: p.minCreditScore,
+        minEmploymentMonths: p.minEmploymentMonths,
+        primeMinIncomeRatioBps: p.primeMinIncomeRatioBps,
+        primeMinCreditScore: p.primeMinCreditScore,
       },
       applicationCount: p._count.applications,
     }));

@@ -27,6 +27,9 @@ export default function EditRequirementsPage() {
   const property = getProperty(propertyId);
 
   const [minIncome, setMinIncome] = useState<number>(75000);
+  const [maxRentToIncomeRatioBps, setMaxRentToIncomeRatioBps] = useState<number>(3300);
+  const [minCreditScore, setMinCreditScore] = useState<number>(650);
+  const [minEmploymentMonths, setMinEmploymentMonths] = useState<number>(12);
   const [requireBackground, setRequireBackground] = useState<boolean>(true);
   const [requireEmployment, setRequireEmployment] = useState<boolean>(true);
   const [verificationFee, setVerificationFee] = useState<number>(5.0);
@@ -35,6 +38,9 @@ export default function EditRequirementsPage() {
   useEffect(() => {
     if (property) {
       setMinIncome(property.requirements.minIncome);
+      if (property.requirements.maxRentToIncomeRatioBps) setMaxRentToIncomeRatioBps(property.requirements.maxRentToIncomeRatioBps);
+      if (property.requirements.minCreditScore) setMinCreditScore(property.requirements.minCreditScore);
+      if (property.requirements.minEmploymentMonths !== undefined) setMinEmploymentMonths(property.requirements.minEmploymentMonths);
       setRequireBackground(property.requirements.requireBackground);
       setRequireEmployment(property.requirements.requireEmployment);
       setVerificationFee(property.requirements.verificationFee);
@@ -65,6 +71,11 @@ export default function EditRequirementsPage() {
       requireBackground,
       requireEmployment,
       verificationFee,
+      maxRentToIncomeRatioBps,
+      minCreditScore,
+      minEmploymentMonths,
+      primeMinIncomeRatioBps: 2500,
+      primeMinCreditScore: 750,
     });
     setSaved(true);
     setTimeout(() => {
@@ -152,6 +163,114 @@ export default function EditRequirementsPage() {
                   <span>$30,000</span>
                   <span>$100,000</span>
                   <span>$200,000</span>
+                </div>
+              </div>
+
+              {/* Rent-to-Income Ratio */}
+              <div className="p-5 rounded-xl bg-white border border-[#E5E0D8] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="font-bold text-[#231F20] text-sm block">
+                      Maximum Rent-to-Income Ratio
+                    </label>
+                    <p className="text-[11px] text-[#3D3531]">
+                      Condition: Tenant proves <code className="text-[#231F20]">Monthly Rent * 12 / Income ≤ {maxRentToIncomeRatioBps / 100}%</code>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[#4A6B32] font-bold text-lg font-serif">
+                      {(maxRentToIncomeRatioBps / 100).toFixed(0)}%
+                    </div>
+                    <span className="text-[10px] text-[#908682]">of gross income</span>
+                  </div>
+                </div>
+
+                <input
+                  type="range"
+                  min="2000"
+                  max="5000"
+                  step="100"
+                  value={maxRentToIncomeRatioBps}
+                  onChange={(e) => setMaxRentToIncomeRatioBps(parseInt(e.target.value))}
+                  className="w-full accent-[#4A6B32]"
+                />
+
+                <div className="flex justify-between text-[10px] text-[#908682]">
+                  <span>20% (Strict)</span>
+                  <span>33% (Standard)</span>
+                  <span>50% (Flexible)</span>
+                </div>
+              </div>
+
+              {/* Credit Score */}
+              <div className="p-5 rounded-xl bg-white border border-[#E5E0D8] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="font-bold text-[#231F20] text-sm block">
+                      Minimum Credit Score
+                    </label>
+                    <p className="text-[11px] text-[#3D3531]">
+                      Condition: Tenant proves <code className="text-[#231F20]">Credit Score ≥ {minCreditScore}</code>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[#4A6B32] font-bold text-lg font-serif">
+                      {minCreditScore}
+                    </div>
+                    <span className="text-[10px] text-[#908682]">FICO / Experian</span>
+                  </div>
+                </div>
+
+                <input
+                  type="range"
+                  min="550"
+                  max="800"
+                  step="10"
+                  value={minCreditScore}
+                  onChange={(e) => setMinCreditScore(parseInt(e.target.value))}
+                  className="w-full accent-[#4A6B32]"
+                />
+
+                <div className="flex justify-between text-[10px] text-[#908682]">
+                  <span>550 (Fair)</span>
+                  <span>650 (Good)</span>
+                  <span>750+ (Prime)</span>
+                </div>
+              </div>
+
+              {/* Employment Tenure */}
+              <div className="p-5 rounded-xl bg-white border border-[#E5E0D8] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="font-bold text-[#231F20] text-sm block">
+                      Minimum Continuous Employment Tenure
+                    </label>
+                    <p className="text-[11px] text-[#3D3531]">
+                      Condition: Tenant proves <code className="text-[#231F20]">Employment Tenure ≥ {minEmploymentMonths} months</code>
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[#4A6B32] font-bold text-lg font-serif">
+                      {minEmploymentMonths}
+                    </div>
+                    <span className="text-[10px] text-[#908682]">months</span>
+                  </div>
+                </div>
+
+                <input
+                  type="range"
+                  min="0"
+                  max="36"
+                  step="3"
+                  value={minEmploymentMonths}
+                  onChange={(e) => setMinEmploymentMonths(parseInt(e.target.value))}
+                  className="w-full accent-[#4A6B32]"
+                />
+
+                <div className="flex justify-between text-[10px] text-[#908682]">
+                  <span>0 mo (Any)</span>
+                  <span>12 mo (1 Year)</span>
+                  <span>36 mo (3 Years)</span>
                 </div>
               </div>
 

@@ -5,6 +5,11 @@ export interface PropertyRequirements {
   requireBackground: boolean;
   requireEmployment: boolean;
   verificationFee: number; // e.g. 5.00
+  maxRentToIncomeRatioBps?: number; // e.g. 3300 (33%)
+  minCreditScore?: number; // e.g. 650
+  minEmploymentMonths?: number; // e.g. 12
+  primeMinIncomeRatioBps?: number; // e.g. 2500 (25%)
+  primeMinCreditScore?: number; // e.g. 750
 }
 
 export interface Property {
@@ -47,10 +52,17 @@ export interface ZkProofDetails {
   merkleRoot: string;
   contractAddress?: string;
   mode?: 'live_devnet' | 'sandbox_simulation';
+  tier?: number;
+  nullifier?: string;
+  criteriaHash?: string;
+  expiresAt?: string;
+  provingTimeMs?: number;
   requirements: {
-    income: { required: number; satisfied: boolean };
-    background: { required: boolean; satisfied: boolean };
-    employment: { required: boolean; satisfied: boolean };
+    income: { required: number; satisfied: boolean; value?: number };
+    rentToIncomeRatio?: { required: number; satisfied: boolean };
+    credit?: { required: number; satisfied: boolean; value?: number };
+    background: { required: boolean; satisfied: boolean; value?: boolean };
+    employment: { required: number | boolean; satisfied: boolean; value?: number };
   };
   zkMetrics: {
     constraints: number;

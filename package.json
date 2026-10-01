@@ -15,6 +15,7 @@
     "db:migrate": "node scripts/migrate.js",
     "db:seed": "node scripts/seed.js",
     "db:generate": "prisma generate",
+    "compact:compile": "wsl bash -c \"cd /mnt/c/Users/akram/Desktop/zkren/midnighthack/zkrent && compact compile contracts/qualification.compact contracts/managed/qualification\"",
     "deploy:contract": "node node_modules/tsx/dist/cli.mjs scripts/deploy.ts"
   },
   "dependencies": {

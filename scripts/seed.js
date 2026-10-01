@@ -216,12 +216,15 @@ async function seed() {
       `INSERT INTO "properties" (
         "title", "address", "city", "state", "zip", "price", "beds", "baths", "sqft",
         "type", "description", "images", "amenities", "status", "minIncome",
-        "requireBackground", "requireEmployment", "verificationFee", "landlordId"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
+        "requireBackground", "requireEmployment", "verificationFee",
+        "maxRentToIncomeRatioBps", "minCreditScore", "minEmploymentMonths",
+        "primeMinIncomeRatioBps", "primeMinCreditScore", "landlordId"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`,
       [
         p.title, p.address, p.city, p.state, p.zip, p.price, p.beds, p.baths, p.sqft,
         p.type, p.description, p.images, p.amenities, 'active', p.minIncome,
-        p.requireBackground, p.requireEmployment, p.verificationFee, landlordId
+        p.requireBackground, p.requireEmployment, p.verificationFee,
+        3300, 650, 12, 2500, 750, landlordId
       ]
     );
   }

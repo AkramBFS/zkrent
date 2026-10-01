@@ -12,14 +12,13 @@
 'use server';
 
 import { resolve } from 'node:path';
-import { existsSync } from 'node:fs';
 import { createHash, randomBytes } from 'node:crypto';
 
 import type {
   TenantWitnessInput,
+  PropertyListingCriteria,
   MidnightProverConfig,
   MidnightProofExecutionResult,
-  RequirementVerificationOutcome,
 } from './types';
 import { createQualificationWitnesses } from './witnesses';
 
@@ -86,26 +85,61 @@ export async function checkDevnetHealth(config: Partial<MidnightProverConfig> = 
 
 function executeSimulatedProof(
   credentials: TenantWitnessInput,
-  propertyRules: {
-    minIncome: number;
-    requireBackground: boolean;
+  propertyRules: Partial<PropertyListingCriteria> & {
+    minIncome?: number;
+    requireBackground?: boolean;
     requireEmployment?: boolean;
   },
   contractAddress: string,
   startTime: number
 ): MidnightProofExecutionResult {
-  const incomeNum = Number(credentials.annualIncome);
-  const incomeSatisfied = incomeNum >= propertyRules.minIncome;
-  const backgroundSatisfied = !propertyRules.requireBackground || credentials.backgroundClean;
-  const employmentSatisfied =
-    !propertyRules.requireEmployment || (credentials.employmentVerified ?? true);
+  const annualIncome = Number(credentials.annualIncome);
+  const creditScore = Number(credentials.creditScore ?? 720);
+  const employmentMonths = Number(credentials.employmentMonths ?? (credentials.employmentVerified ? 24 : 0));
+  const backgroundClean = Boolean(credentials.backgroundClean);
 
-  const isEligible = incomeSatisfied && backgroundSatisfied && employmentSatisfied;
+  // Normalize criteria with defaults
+  const monthlyRent = Number(propertyRules.monthlyRent ?? 2400);
+  const minMonthlyIncome = Number(propertyRules.minMonthlyIncome ?? Math.round((propertyRules.minIncome ?? 75000) / 12));
+  const maxRentToIncomeRatioBps = Number(propertyRules.maxRentToIncomeRatioBps ?? 3300); // 33.00%
+  const minCreditScore = Number(propertyRules.minCreditScore ?? 650);
+  const minEmploymentMonths = Number(propertyRules.minEmploymentMonths ?? (propertyRules.requireEmployment ? 12 : 0));
+  const requireBackground = propertyRules.requireCleanBackground ?? (propertyRules.requireBackground ?? true);
+  const primeMinIncomeRatioBps = Number(propertyRules.primeMinIncomeRatioBps ?? 2500); // 25% ratio (~4x rent)
+  const primeMinCreditScore = Number(propertyRules.primeMinCreditScore ?? 750);
+
+  // Division-free integer math matching qualification.compact:
+  // 1. Income check: annualIncome >= minMonthlyIncome * 12
+  const minAnnualIncome = minMonthlyIncome * 12;
+  const incomeSatisfied = annualIncome >= minAnnualIncome;
+
+  // 2. Rent-to-income ratio: monthlyRent * 120000 <= annualIncome * maxRentToIncomeRatioBps
+  const rentRatioLhs = monthlyRent * 120000;
+  const rentRatioRhs = annualIncome * maxRentToIncomeRatioBps;
+  const rentRatioSatisfied = rentRatioLhs <= rentRatioRhs;
+
+  // 3. Credit score & employment checks
+  const creditSatisfied = creditScore >= minCreditScore;
+  const employmentSatisfied = employmentMonths >= minEmploymentMonths;
+
+  // 4. Background check
+  const backgroundSatisfied = !requireBackground || backgroundClean;
+
+  const isEligible = incomeSatisfied && rentRatioSatisfied && creditSatisfied && employmentSatisfied && backgroundSatisfied;
+
+  // 5. Prime tier check
+  const primeRatioRhs = annualIncome * primeMinIncomeRatioBps;
+  const isPrime = isEligible && (rentRatioLhs <= primeRatioRhs) && (creditScore >= primeMinCreditScore);
+  const tier: 0 | 1 = isPrime ? 1 : 0;
+
   const provingTimeMs = Math.max(1200, Date.now() - startTime + Math.floor(Math.random() * 300));
 
-  // Deterministic seed for reproducible verification
-  const seed = `${incomeNum}:${credentials.backgroundClean}:${propertyRules.minIncome}:${contractAddress}`;
-  const digest = createHash('sha256').update(seed).digest('hex');
+  // Nullifier & criteria hashes
+  const nullifierSeed = `${credentials.tenantSecret || 'tenant-sec'}:${propertyRules.criteriaHash || monthlyRent}`;
+  const nullifier = `zk_null_${createHash('sha256').update(nullifierSeed).digest('hex').slice(0, 32)}`;
+  const criteriaHash = propertyRules.criteriaHash || `ch_${createHash('sha256').update(`${monthlyRent}:${maxRentToIncomeRatioBps}:${minCreditScore}`).digest('hex').slice(0, 24)}`;
+
+  const digest = createHash('sha256').update(`${annualIncome}:${creditScore}:${nullifier}`).digest('hex');
   const txRandom = randomBytes(16).toString('hex');
 
   const proofHash = `zk_p_${digest.slice(0, 32)}`;
@@ -116,24 +150,29 @@ function executeSimulatedProof(
   return {
     success: true,
     isEligible,
+    tier,
+    nullifier,
+    criteriaHash,
     midnightTxHash,
     proofHash,
-    circuitId: 'verifyQualification',
+    circuitId: 'proveQualification',
     blockHeight,
     merkleRoot,
     provingTimeMs,
     contractAddress,
     mode: 'sandbox_simulation',
     requirements: {
-      income: { required: propertyRules.minIncome, satisfied: incomeSatisfied },
-      background: { required: propertyRules.requireBackground, satisfied: backgroundSatisfied },
-      employment: { required: propertyRules.requireEmployment ?? false, satisfied: employmentSatisfied },
+      income: { required: minAnnualIncome, satisfied: incomeSatisfied, value: annualIncome },
+      rentToIncomeRatio: { required: maxRentToIncomeRatioBps / 100, satisfied: rentRatioSatisfied },
+      credit: { required: minCreditScore, satisfied: creditSatisfied, value: creditScore },
+      background: { required: requireBackground, satisfied: backgroundSatisfied, value: backgroundClean },
+      employment: { required: minEmploymentMonths, satisfied: employmentSatisfied, value: employmentMonths },
     },
     zkMetrics: {
       constraints: 38420,
       provingTimeMs,
       circuitSize: '2.4 MB',
-      protocolVersion: 'Midnight Halo2 v1.2 (Sandbox Sandbox)',
+      protocolVersion: 'Midnight Halo2 v1.2 (Sandbox Simulation)',
     },
   };
 }
@@ -144,9 +183,9 @@ function executeSimulatedProof(
 
 async function executeLiveMidnightProof(
   credentials: TenantWitnessInput,
-  propertyRules: {
-    minIncome: number;
-    requireBackground: boolean;
+  propertyRules: Partial<PropertyListingCriteria> & {
+    minIncome?: number;
+    requireBackground?: boolean;
     requireEmployment?: boolean;
   },
   config: MidnightProverConfig,
@@ -165,16 +204,14 @@ async function executeLiveMidnightProof(
   const { CostModel } = require('@midnight-ntwrk/ledger-v8');
   const { WebSocket } = require('ws');
 
-  // Ensure global WebSocket is available
   (globalThis as { WebSocket?: unknown }).WebSocket ??= WebSocket;
-
   setNetworkId(config.networkId);
 
   const zkConfigPath = config.zkConfigPath || resolve(process.cwd(), 'contracts/managed/qualification');
   const { Contract } = await import('../../contracts/managed/qualification/contract/index.js');
 
   const witnesses = createQualificationWitnesses(credentials);
-  const contractInstance = new Contract(witnesses);
+  new Contract(witnesses);
 
   const compiledContract = CompiledContract
     .make('qualification', Contract as never)
@@ -194,7 +231,6 @@ async function executeLiveMidnightProof(
     privateStoragePasswordProvider: () => config.privateStatePassword || 'Private-State-Pass',
   });
 
-  // Mock wallet provider for unproven call tx creation and proving
   const dummyPublicKey = new Uint8Array(32);
   const mockWalletProvider = {
     getCoinPublicKey: () => dummyPublicKey,
@@ -212,18 +248,21 @@ async function executeLiveMidnightProof(
     midnightProvider: mockWalletProvider,
   };
 
-  // Create unproven call transaction with witnesses bound
+  const listingIdBytes = new Uint8Array(32);
+  const applicationIdBytes = new Uint8Array(32);
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000));
+
+  // Synthesize unproven call tx
   const callTxData = await createUnprovenCallTx(providers, {
     compiledContract: compiledContract as any,
     contractAddress: config.contractAddress,
-    circuitId: 'verifyQualification',
-    args: [],
+    circuitId: 'proveQualification',
+    args: [listingIdBytes, applicationIdBytes, nowSeconds],
   } as never);
 
   const { unprovenTx } = (callTxData as any).private;
   const costModel = CostModel.initialCostModel();
 
-  // Synthesize proof via Midnight proof-server
   const provenTx = await unprovenTx.prove(proofProvider, costModel);
   const provingTimeMs = Date.now() - startTime;
 
@@ -232,28 +271,16 @@ async function executeLiveMidnightProof(
   const midnightTxHash = `0x${createHash('sha256').update(provenTx.publicInputs || randomBytes(32)).digest('hex')}`;
   const merkleRoot = `0x${createHash('sha256').update(proofHash).digest('hex')}`;
 
-  const incomeNum = Number(credentials.annualIncome);
-  const incomeSatisfied = incomeNum >= propertyRules.minIncome;
-  const backgroundSatisfied = credentials.backgroundClean;
-  const employmentSatisfied =
-    !propertyRules.requireEmployment || (credentials.employmentVerified ?? true);
+  const sim = executeSimulatedProof(credentials, propertyRules, config.contractAddress, startTime);
 
   return {
-    success: true,
-    isEligible: incomeSatisfied && backgroundSatisfied && employmentSatisfied,
+    ...sim,
     midnightTxHash,
     proofHash,
-    circuitId: 'verifyQualification',
-    blockHeight: 1849210,
+    circuitId: 'proveQualification',
     merkleRoot,
     provingTimeMs,
-    contractAddress: config.contractAddress,
     mode: 'live_devnet',
-    requirements: {
-      income: { required: propertyRules.minIncome, satisfied: incomeSatisfied },
-      background: { required: propertyRules.requireBackground, satisfied: backgroundSatisfied },
-      employment: { required: propertyRules.requireEmployment ?? false, satisfied: employmentSatisfied },
-    },
     zkMetrics: {
       constraints: 38420,
       provingTimeMs,
@@ -273,59 +300,24 @@ async function executeLiveMidnightProof(
  */
 export async function executeMidnightQualificationProof(
   credentials: TenantWitnessInput,
-  propertyRules: {
-    minIncome: number;
-    requireBackground: boolean;
+  propertyRules: Partial<PropertyListingCriteria> & {
+    minIncome?: number;
+    requireBackground?: boolean;
     requireEmployment?: boolean;
   },
-  customConfig?: Partial<MidnightProverConfig>
+  config: Partial<MidnightProverConfig> = {}
 ): Promise<MidnightProofExecutionResult> {
+  const mergedConfig = { ...DEFAULT_CONFIG, ...config };
   const startTime = Date.now();
-  const config = { ...DEFAULT_CONFIG, ...customConfig };
 
-  const incomeNum = Number(credentials.annualIncome);
-  const incomeSatisfied = incomeNum >= propertyRules.minIncome;
-  const backgroundSatisfied = !propertyRules.requireBackground || credentials.backgroundClean;
-  const employmentSatisfied =
-    !propertyRules.requireEmployment || (credentials.employmentVerified ?? true);
-
-  // If credentials fail rules, the circuit assertion naturally fails
-  if (!incomeSatisfied || !backgroundSatisfied) {
-    return {
-      success: true,
-      isEligible: false,
-      midnightTxHash: `0x${randomBytes(32).toString('hex')}`,
-      proofHash: `zk_p_rej_${randomBytes(16).toString('hex')}`,
-      circuitId: 'verifyQualification',
-      blockHeight: 1849205,
-      merkleRoot: `0x${randomBytes(32).toString('hex')}`,
-      provingTimeMs: 1350,
-      contractAddress: config.contractAddress,
-      mode: 'sandbox_simulation',
-      requirements: {
-        income: { required: propertyRules.minIncome, satisfied: incomeSatisfied },
-        background: { required: propertyRules.requireBackground, satisfied: backgroundSatisfied },
-        employment: { required: propertyRules.requireEmployment ?? false, satisfied: employmentSatisfied },
-      },
-      zkMetrics: {
-        constraints: 38420,
-        provingTimeMs: 1350,
-        circuitSize: '2.4 MB',
-        protocolVersion: 'Midnight Halo2 v1.2',
-      },
-    };
-  }
-
-  // Attempt live devnet proving if services are reachable
   try {
-    const health = await checkDevnetHealth(config);
+    const health = await checkDevnetHealth(mergedConfig);
     if (health.ready) {
-      return await executeLiveMidnightProof(credentials, propertyRules, config, startTime);
+      return await executeLiveMidnightProof(credentials, propertyRules, mergedConfig, startTime);
     }
-  } catch (err) {
-    console.warn('Live devnet proving attempt encountered an error, using sandbox simulation fallback:', err);
+  } catch (error) {
+    console.warn('[MidnightProver] Live devnet execution failed, using sandbox fallback:', error);
   }
 
-  // Resilient fallback
-  return executeSimulatedProof(credentials, propertyRules, config.contractAddress, startTime);
+  return executeSimulatedProof(credentials, propertyRules, mergedConfig.contractAddress, startTime);
 }

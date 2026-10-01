@@ -13,6 +13,10 @@ const suites = [
     path: resolve(rootDir, 'scripts/test-ocr-parser.ts'),
   },
   {
+    name: 'Midnight Contract Circuits Security & Functional Suite (T1 - T8)',
+    path: resolve(rootDir, 'scripts/test-contract-circuits.ts'),
+  },
+  {
     name: 'Midnight Smart Contract & Prover Integration Tests',
     path: resolve(rootDir, 'scripts/test-midnight-prover.ts'),
   },

@@ -5,23 +5,40 @@ export interface PropertyQualificationRules {
   requireBackground: boolean;
   requireEmployment: boolean;
   verificationFee?: number;
+  monthlyRent?: number;
+  maxRentToIncomeRatioBps?: number;
+  minCreditScore?: number;
+  minEmploymentMonths?: number;
+  primeMinIncomeRatioBps?: number;
+  primeMinCreditScore?: number;
+  criteriaHash?: string;
+  criteriaVersion?: number;
 }
 
 export interface TenantPrivateCredentials {
   income: number;
+  creditScore?: number;
+  employmentMonths?: number;
   backgroundVerified: boolean;
   employmentVerified: boolean;
+  tenantSecret?: string;
+  tenantSalt?: string;
+  applicationId?: string;
 }
 
 export interface VerificationRequirementCheck {
   required: number | boolean;
   satisfied: boolean;
+  value?: number | boolean;
 }
 
 export interface VerificationResult {
   verified: boolean;
   isEligible: boolean;
   eligible: boolean;
+  tier: 0 | 1;
+  nullifier: string;
+  criteriaHash: string;
   verifiedAt: string;
   midnightTxHash: string;
   circuitId: string;
@@ -32,9 +49,11 @@ export interface VerificationResult {
   contractAddress?: string;
   mode?: 'live_devnet' | 'sandbox_simulation';
   requirements: {
-    income: { required: number; satisfied: boolean };
-    background: { required: boolean; satisfied: boolean };
-    employment: { required: boolean; satisfied: boolean };
+    income: { required: number; satisfied: boolean; value?: number };
+    rentToIncomeRatio: { required: number; satisfied: boolean };
+    credit: { required: number; satisfied: boolean; value?: number };
+    background: { required: boolean; satisfied: boolean; value?: boolean };
+    employment: { required: number; satisfied: boolean; value?: number };
   };
   zkMetrics: {
     constraints: number;
@@ -59,13 +78,25 @@ export class MidnightZkVerifier implements IVerifier {
     const result = await executeMidnightQualificationProof(
       {
         annualIncome: credentials.income,
+        creditScore: credentials.creditScore ?? 720,
+        employmentMonths: credentials.employmentMonths ?? (credentials.employmentVerified ? 24 : 0),
         backgroundClean: credentials.backgroundVerified,
         employmentVerified: credentials.employmentVerified,
+        tenantSecret: credentials.tenantSecret,
+        tenantSalt: credentials.tenantSalt,
+        applicationId: credentials.applicationId,
       },
       {
-        minIncome: rules.minIncome,
-        requireBackground: rules.requireBackground,
-        requireEmployment: rules.requireEmployment,
+        monthlyRent: rules.monthlyRent ?? Math.round(rules.minIncome / 36),
+        minMonthlyIncome: Math.round(rules.minIncome / 12),
+        maxRentToIncomeRatioBps: rules.maxRentToIncomeRatioBps ?? 3300,
+        minCreditScore: rules.minCreditScore ?? 650,
+        minEmploymentMonths: rules.minEmploymentMonths ?? (rules.requireEmployment ? 12 : 0),
+        requireCleanBackground: rules.requireBackground,
+        primeMinIncomeRatioBps: rules.primeMinIncomeRatioBps ?? 2500,
+        primeMinCreditScore: rules.primeMinCreditScore ?? 750,
+        criteriaHash: rules.criteriaHash,
+        criteriaVersion: rules.criteriaVersion,
       }
     );
 
@@ -73,6 +104,9 @@ export class MidnightZkVerifier implements IVerifier {
       verified: result.success,
       isEligible: result.isEligible,
       eligible: result.isEligible,
+      tier: result.tier,
+      nullifier: result.nullifier,
+      criteriaHash: result.criteriaHash,
       verifiedAt: new Date().toISOString(),
       midnightTxHash: result.midnightTxHash,
       circuitId: result.circuitId,
@@ -86,14 +120,26 @@ export class MidnightZkVerifier implements IVerifier {
         income: {
           required: Number(result.requirements.income.required),
           satisfied: result.requirements.income.satisfied,
+          value: Number(result.requirements.income.value ?? credentials.income),
+        },
+        rentToIncomeRatio: {
+          required: Number(result.requirements.rentToIncomeRatio.required),
+          satisfied: result.requirements.rentToIncomeRatio.satisfied,
+        },
+        credit: {
+          required: Number(result.requirements.credit.required),
+          satisfied: result.requirements.credit.satisfied,
+          value: Number(result.requirements.credit.value ?? credentials.creditScore ?? 720),
         },
         background: {
           required: Boolean(result.requirements.background.required),
           satisfied: result.requirements.background.satisfied,
+          value: Boolean(result.requirements.background.value ?? credentials.backgroundVerified),
         },
         employment: {
-          required: Boolean(result.requirements.employment.required),
+          required: Number(result.requirements.employment.required),
           satisfied: result.requirements.employment.satisfied,
+          value: Number(result.requirements.employment.value ?? (credentials.employmentVerified ? 24 : 0)),
         },
       },
       zkMetrics: result.zkMetrics,
@@ -101,51 +147,6 @@ export class MidnightZkVerifier implements IVerifier {
   }
 }
 
-export class SimulatedZkVerifier implements IVerifier {
-  async verify(
-    rules: PropertyQualificationRules,
-    credentials: TenantPrivateCredentials
-  ): Promise<VerificationResult> {
-    const incomeSatisfied = credentials.income >= rules.minIncome;
-    const backgroundSatisfied = !rules.requireBackground || credentials.backgroundVerified;
-    const employmentSatisfied = !rules.requireEmployment || credentials.employmentVerified;
-
-    const isEligible = incomeSatisfied && backgroundSatisfied && employmentSatisfied;
-
-    const randomHex = (len: number) =>
-      Array.from({ length: len }, () => Math.floor(Math.random() * 16).toString(16)).join('');
-
-    const proofHash = `zk_p_${randomHex(32)}`;
-    const midnightTx = `0x${randomHex(64)}`;
-    const merkleRoot = `0x${randomHex(64)}`;
-    const blockHeight = 1849000 + Math.floor(Math.random() * 500);
-    const provingTimeMs = 1400 + Math.floor(Math.random() * 250);
-
-    return {
-      verified: true,
-      isEligible,
-      eligible: isEligible,
-      verifiedAt: new Date().toISOString(),
-      midnightTxHash: midnightTx,
-      circuitId: 'verifyQualification',
-      zkProofHash: proofHash,
-      blockHeight,
-      merkleRoot,
-      provingTimeMs,
-      mode: 'sandbox_simulation',
-      requirements: {
-        income: { required: rules.minIncome, satisfied: incomeSatisfied },
-        background: { required: rules.requireBackground, satisfied: backgroundSatisfied },
-        employment: { required: rules.requireEmployment, satisfied: employmentSatisfied },
-      },
-      zkMetrics: {
-        constraints: 38420,
-        provingTimeMs,
-        circuitSize: '2.4 MB',
-        protocolVersion: 'Midnight Halo2 v1.2 (Local Simulation)',
-      },
-    };
-  }
-}
+export class SimulatedZkVerifier extends MidnightZkVerifier {}
 
 export const defaultVerifier: IVerifier = new MidnightZkVerifier();

@@ -80,6 +80,13 @@ model Property {
   requireBackground Boolean       @default(true)
   requireEmployment Boolean       @default(true)
   verificationFee   Float         @default(5.0)
+  maxRentToIncomeRatioBps Int     @default(3300)
+  minCreditScore    Int           @default(650)
+  minEmploymentMonths Int         @default(12)
+  primeMinIncomeRatioBps Int      @default(2500)
+  primeMinCreditScore Int         @default(750)
+  criteriaHash      String?
+  criteriaVersion   Int           @default(1)
   landlordId        String        @db.Uuid
   landlord          User          @relation(fields: [landlordId], references: [id])
   createdAt         DateTime      @default(now())
@@ -141,6 +148,11 @@ model Verification {
   merkleRoot    String?
   blockHeight   Int?
   provingTimeMs Int?
+  tier          Int                @default(0)
+  nullifier     String?
+  criteriaHash  String?
+  expiresAt     DateTime?
+  lifecycle     String             @default("Active")
   verifiedAt    DateTime?
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @default(now()) @updatedAt

@@ -56,6 +56,11 @@ export async function GET(
         requireBackground: property.requireBackground,
         requireEmployment: property.requireEmployment,
         verificationFee: property.verificationFee,
+        maxRentToIncomeRatioBps: property.maxRentToIncomeRatioBps,
+        minCreditScore: property.minCreditScore,
+        minEmploymentMonths: property.minEmploymentMonths,
+        primeMinIncomeRatioBps: property.primeMinIncomeRatioBps,
+        primeMinCreditScore: property.primeMinCreditScore,
       },
       applicationCount: property._count.applications,
     };
@@ -145,6 +150,11 @@ export async function PATCH(
         requireBackground: updated.requireBackground,
         requireEmployment: updated.requireEmployment,
         verificationFee: updated.verificationFee,
+        maxRentToIncomeRatioBps: updated.maxRentToIncomeRatioBps,
+        minCreditScore: updated.minCreditScore,
+        minEmploymentMonths: updated.minEmploymentMonths,
+        primeMinIncomeRatioBps: updated.primeMinIncomeRatioBps,
+        primeMinCreditScore: updated.primeMinCreditScore,
       },
     };
 

@@ -48,9 +48,26 @@ export function VerifyReceiptDrawer({
               <span className="font-serif font-bold text-[#231F20] text-base">
                 Cryptographic Proof Receipt
               </span>
-              <span className="font-mono text-xs px-2 py-0.5 rounded bg-[#4A6B32]/15 text-[#3A5427] border border-[#4A6B32]/30 font-medium">
-                Midnight Verified
-              </span>
+              {proof.mode === 'sandbox_simulation' ? (
+                <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 font-semibold tracking-wide">
+                  [SIMULATION MODE]
+                </span>
+              ) : (
+                <span className="font-mono text-xs px-2 py-0.5 rounded bg-[#4A6B32]/15 text-[#3A5427] border border-[#4A6B32]/30 font-medium">
+                  Midnight Devnet Verified
+                </span>
+              )}
+              {proof.tier !== undefined && (
+                <span
+                  className={`font-mono text-[11px] px-2 py-0.5 rounded font-bold border ${
+                    proof.tier === 1
+                      ? 'bg-purple-100 text-purple-900 border-purple-300'
+                      : 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                  }`}
+                >
+                  {proof.tier === 1 ? 'Prime Tier (1)' : 'Standard Tier (0)'}
+                </span>
+              )}
             </div>
             <p className="text-xs text-[#3D3531] mt-0.5">
               Inspect on-chain proof metadata for {applicantDisplayId} {propertyTitle ? `• ${propertyTitle}` : ''}
@@ -80,6 +97,15 @@ export function VerifyReceiptDrawer({
             className="overflow-hidden"
           >
             <div className="p-5 border-t border-[#231F20]/10 bg-[#231F20] text-[#E5E0D8]">
+              {proof.mode === 'sandbox_simulation' && (
+                <div className="mb-4 p-3 rounded bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs font-mono flex items-center justify-between">
+                  <span>
+                    <strong>Notice:</strong> Executed via in-browser ZK constraint simulator. Private witnesses never left the client.
+                  </span>
+                  <span className="text-[10px] text-amber-400">NEXT_PUBLIC_MIDNIGHT_MODE=sandbox_simulation</span>
+                </div>
+              )}
+
               <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#00A8E8]/20">
                 <div className="flex items-center gap-2">
                   <Terminal className="w-4 h-4 text-[#00A8E8]" />
@@ -113,7 +139,7 @@ export function VerifyReceiptDrawer({
 
                 <div className="p-3 rounded bg-[#231F20] border border-[#00A8E8]/20">
                   <div className="flex items-center justify-between text-xs text-[#908682] mb-1 font-mono">
-                    <span>{proof.contractAddress ? 'Midnight Contract Target' : 'ZK Circuit Reference'}</span>
+                    <span>ZK Circuit Reference</span>
                     <motion.button
                       whileTap={prefersReduced ? undefined : { scale: 0.92 }}
                       onClick={() => copyToClipboard(proof.contractAddress || proof.circuitId, 'contract')}
@@ -124,9 +150,47 @@ export function VerifyReceiptDrawer({
                     </motion.button>
                   </div>
                   <div className="font-mono text-xs text-[#E5E0D8] break-all">
-                    {proof.contractAddress || proof.circuitId}
+                    {proof.circuitId} {proof.contractAddress ? `(${proof.contractAddress.slice(0, 10)}...)` : ''}
                   </div>
                 </div>
+
+                {proof.nullifier && (
+                  <div className="p-3 rounded bg-[#231F20] border border-[#00A8E8]/20">
+                    <div className="flex items-center justify-between text-xs text-[#908682] mb-1 font-mono">
+                      <span>Anti-Replay Nullifier</span>
+                      <motion.button
+                        whileTap={prefersReduced ? undefined : { scale: 0.92 }}
+                        onClick={() => copyToClipboard(proof.nullifier!, 'nullifier')}
+                        className="text-[#00A8E8] hover:text-white flex items-center gap-1 cursor-pointer"
+                      >
+                        {copiedHash === 'nullifier' ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span className="text-[10px]">{copiedHash === 'nullifier' ? 'Copied' : 'Copy'}</span>
+                      </motion.button>
+                    </div>
+                    <div className="font-mono text-xs text-[#E5E0D8] break-all">
+                      {proof.nullifier}
+                    </div>
+                  </div>
+                )}
+
+                {proof.criteriaHash && (
+                  <div className="p-3 rounded bg-[#231F20] border border-[#00A8E8]/20">
+                    <div className="flex items-center justify-between text-xs text-[#908682] mb-1 font-mono">
+                      <span>Listing Criteria Hash (Bound)</span>
+                      <motion.button
+                        whileTap={prefersReduced ? undefined : { scale: 0.92 }}
+                        onClick={() => copyToClipboard(proof.criteriaHash!, 'criteriaHash')}
+                        className="text-[#00A8E8] hover:text-white flex items-center gap-1 cursor-pointer"
+                      >
+                        {copiedHash === 'criteriaHash' ? <CheckCheck className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span className="text-[10px]">{copiedHash === 'criteriaHash' ? 'Copied' : 'Copy'}</span>
+                      </motion.button>
+                    </div>
+                    <div className="font-mono text-xs text-[#E5E0D8] break-all">
+                      {proof.criteriaHash}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Circuit Metrics & Verification Proof Checklist */}
@@ -161,7 +225,7 @@ export function VerifyReceiptDrawer({
                 <div className="space-y-2 text-xs font-mono">
                   <div className="flex items-center justify-between py-1.5 border-b border-white/5">
                     <span className="text-[#908682]">
-                      Income Requirement Threshold (≥ ${(proof.requirements.income.required).toLocaleString()}/yr)
+                      Annual Income Requirement Threshold (≥ ${(proof.requirements.income.required).toLocaleString()}/yr)
                     </span>
                     <span className="inline-flex items-center gap-1 text-[#00A8E8] font-semibold">
                       <Check className="w-3.5 h-3.5" />
@@ -169,16 +233,42 @@ export function VerifyReceiptDrawer({
                     </span>
                   </div>
 
+                  {proof.requirements.rentToIncomeRatio && (
+                    <div className="flex items-center justify-between py-1.5 border-b border-white/5">
+                      <span className="text-[#908682]">
+                        Max Rent-to-Income Ratio (≤ {(proof.requirements.rentToIncomeRatio.required / 100).toFixed(0)}%)
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[#00A8E8] font-semibold">
+                        <Check className="w-3.5 h-3.5" />
+                        {proof.requirements.rentToIncomeRatio.satisfied ? 'Satisfied (Verified On-Chain)' : 'Failed'}
+                      </span>
+                    </div>
+                  )}
+
+                  {proof.requirements.credit && (
+                    <div className="flex items-center justify-between py-1.5 border-b border-white/5">
+                      <span className="text-[#908682]">
+                        Minimum Credit Score Requirement (≥ {proof.requirements.credit.required})
+                      </span>
+                      <span className="inline-flex items-center gap-1 text-[#00A8E8] font-semibold">
+                        <Check className="w-3.5 h-3.5" />
+                        {proof.requirements.credit.satisfied ? 'Satisfied (Private Witness)' : 'Failed'}
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between py-1.5 border-b border-white/5">
-                    <span className="text-[#908682]">Criminal & Credit Background Verification</span>
+                    <span className="text-[#908682]">Criminal & Eviction Background Verification</span>
                     <span className="inline-flex items-center gap-1 text-[#00A8E8] font-semibold">
                       <Check className="w-3.5 h-3.5" />
-                      {proof.requirements.background.satisfied ? 'Satisfied (No Records)' : 'Failed'}
+                      {proof.requirements.background.satisfied ? 'Satisfied (Clean Registry)' : 'Failed'}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between py-1.5">
-                    <span className="text-[#908682]">Active Employment Status Verification</span>
+                    <span className="text-[#908682]">
+                      Active Employment Tenure {typeof proof.requirements.employment.required === 'number' ? `(≥ ${proof.requirements.employment.required} mos)` : ''}
+                    </span>
                     <span className="inline-flex items-center gap-1 text-[#00A8E8] font-semibold">
                       <Check className="w-3.5 h-3.5" />
                       {proof.requirements.employment.satisfied ? 'Satisfied (Active Attestation)' : 'Failed'}

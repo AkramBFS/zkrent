@@ -246,41 +246,64 @@ export function ZkRentProvider({ children }: { children: React.ReactNode }) {
       requireBackground: prop?.requirements.requireBackground ?? true,
       requireEmployment: prop?.requirements.requireEmployment ?? true,
       verificationFee: prop?.requirements.verificationFee ?? 5.0,
+      monthlyRent: prop?.price ?? 2400,
     };
 
     let proofResult: ZkProofDetails;
     let isEligible = false;
 
     try {
-      // 1. Synthesize Zero-Knowledge Proof via Midnight Prover Endpoint
+      // 1. Synthesize Zero-Knowledge Proof locally on client (raw income NEVER sent over network)
+      const localProof = await defaultVerifier.verify(rules, {
+        income: credentials.income,
+        backgroundVerified: credentials.backgroundVerified,
+        employmentVerified: credentials.employmentVerified,
+        applicationId,
+      });
+
+      proofResult = localProof;
+      isEligible = localProof.eligible;
+
+      // 2. Transmit strictly public proof receipt envelope to API
       const res = await fetch('/api/verifications/prove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           applicationId,
-          credentials: {
-            income: credentials.income,
-            backgroundVerified: credentials.backgroundVerified,
-            employmentVerified: credentials.employmentVerified,
+          proofResult: {
+            isEligible: localProof.isEligible,
+            tier: localProof.tier,
+            nullifier: localProof.nullifier,
+            criteriaHash: localProof.criteriaHash,
+            midnightTxHash: localProof.midnightTxHash,
+            proofHash: localProof.zkProofHash,
+            circuitId: localProof.circuitId,
+            blockHeight: localProof.blockHeight,
+            merkleRoot: localProof.merkleRoot,
+            provingTimeMs: localProof.provingTimeMs,
+            mode: localProof.mode,
+            requirements: localProof.requirements,
+            zkMetrics: localProof.zkMetrics,
           },
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
-        proofResult = data.proof;
-        isEligible = data.isEligible;
-      } else {
-        // Fallback to local client verifier if server route errors
-        console.warn('Server prover returned status:', res.status, 'Falling back to client verifier');
-        proofResult = await defaultVerifier.verify(rules, credentials);
-        isEligible = proofResult.eligible;
+        if (data.proof) {
+          proofResult = data.proof;
+        }
       }
 
       await fetchApplications();
     } catch (e) {
       console.error('Error in proof pipeline, using client verifier:', e);
-      proofResult = await defaultVerifier.verify(rules, credentials);
+      proofResult = await defaultVerifier.verify(rules, {
+        income: credentials.income,
+        backgroundVerified: credentials.backgroundVerified,
+        employmentVerified: credentials.employmentVerified,
+        applicationId,
+      });
       isEligible = proofResult.eligible;
     }
 

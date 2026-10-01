@@ -2,29 +2,316 @@ pragma language_version >= 0.22;
 
 import CompactStandardLibrary;
 
-export ledger minIncomeReq: Uint<64>;
+// -----------------------------------------------------------------------------
+// Data Types
+// -----------------------------------------------------------------------------
 
-witness annualIncome(): Uint<64>;
-witness backgroundClean(): Boolean;
-
-struct QualificationResult {
-  incomeOk: Boolean,
-  backgroundOk: Boolean
+export struct ListingCriteria {
+  landlordPk: Bytes<32>,
+  criteriaVersion: Uint<32>,
+  criteriaHash: Bytes<32>,
+  monthlyRent: Uint<64>,
+  minMonthlyIncome: Uint<64>,
+  maxRentToIncomeRatioBps: Uint<16>,
+  minCreditScore: Uint<16>,
+  requireCleanBackground: Boolean,
+  minEmploymentMonths: Uint<16>,
+  primeMinIncomeRatioBps: Uint<16>,
+  primeMinCreditScore: Uint<16>,
+  active: Boolean
 }
 
-constructor(minIncome: Uint<64>) {
-  minIncomeReq = disclose(minIncome);
+export enum RecordLifecycle { Active, Consumed, Revoked }
+
+export struct ApplicationStatusRecord {
+  listingId: Bytes<32>,
+  criteriaHash: Bytes<32>,
+  tenantCommitment: Bytes<32>,
+  tier: Uint<8>,
+  lifecycle: RecordLifecycle,
+  verifiedAt: Uint<64>,
+  expiresAt: Uint<64>
 }
 
-export circuit verifyQualification(): QualificationResult {
-  const income = annualIncome();
-  const clean = backgroundClean();
-  
-  assert(income >= minIncomeReq, "Income below requirement");
-  assert(clean == true, "Background check failed");
-  
-  return QualificationResult {
-    incomeOk: disclose(income >= minIncomeReq),
-    backgroundOk: disclose(clean)
+export struct Attestation {
+  issuerPk: Bytes<32>,
+  subjectCommitment: Bytes<32>,
+  annualIncome: Uint<64>,
+  creditScore: Uint<16>,
+  employmentMonths: Uint<16>,
+  backgroundClean: Boolean,
+  issuedAt: Uint<64>,
+  expiresAt: Uint<64>
+}
+
+// -----------------------------------------------------------------------------
+// Ledger State Declarations
+// -----------------------------------------------------------------------------
+
+export ledger listings: Map<Bytes<32>, ListingCriteria>;
+export ledger applicationRecords: Map<Bytes<32>, ApplicationStatusRecord>;
+export ledger nullifierSet: Set<Bytes<32>>;
+export sealed ledger contractAdmin: Bytes<32>;
+export ledger isPaused: Boolean;
+
+// -----------------------------------------------------------------------------
+// Witness Declarations (Client-Side Prover Only)
+// -----------------------------------------------------------------------------
+
+witness getAttestation(): Attestation;
+witness getTenantSecret(): Bytes<32>;
+witness getTenantSalt(): Bytes<32>;
+witness getCallerSecret(): Bytes<32>;
+
+// -----------------------------------------------------------------------------
+// Constructor
+// -----------------------------------------------------------------------------
+
+constructor(admin: Bytes<32>) {
+  contractAdmin = disclose(admin);
+  isPaused = false;
+}
+
+// -----------------------------------------------------------------------------
+// Helper Circuits
+// -----------------------------------------------------------------------------
+
+circuit getPublicKey(sk: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([
+    pad(32, "zkrent:pk:"),
+    sk
+  ]);
+}
+
+circuit computeCriteriaHash(
+  listingId: Bytes<32>,
+  version: Uint<32>,
+  rent: Uint<64>,
+  minInc: Uint<64>,
+  maxRatio: Uint<16>,
+  minCred: Uint<16>
+): Bytes<32> {
+  return persistentHash<Vector<6, Bytes<32>>>([
+    listingId,
+    (version as Field) as Bytes<32>,
+    (rent as Field) as Bytes<32>,
+    (minInc as Field) as Bytes<32>,
+    (maxRatio as Field) as Bytes<32>,
+    (minCred as Field) as Bytes<32>
+  ]);
+}
+
+circuit assertNotPaused(): [] {
+  assert(!isPaused, "Contract is currently paused");
+}
+
+// -----------------------------------------------------------------------------
+// Admin Circuit
+// -----------------------------------------------------------------------------
+
+export circuit setPaused(paused: Boolean): [] {
+  const callerSk = getCallerSecret();
+  const callerPk = getPublicKey(callerSk);
+  assert(disclose(callerPk == contractAdmin), "Only contract admin can pause");
+  isPaused = disclose(paused);
+}
+
+// -----------------------------------------------------------------------------
+// Landlord Circuit: Register or Update Listing Criteria
+// -----------------------------------------------------------------------------
+
+export circuit registerListingCriteria(
+  listingId: Bytes<32>,
+  monthlyRent: Uint<64>,
+  minMonthlyIncome: Uint<64>,
+  maxRentToIncomeRatioBps: Uint<16>,
+  minCreditScore: Uint<16>,
+  requireCleanBackground: Boolean,
+  minEmploymentMonths: Uint<16>,
+  primeMinIncomeRatioBps: Uint<16>,
+  primeMinCreditScore: Uint<16>,
+  active: Boolean
+): [] {
+  assertNotPaused();
+  const callerSk = getCallerSecret();
+  const callerPk = getPublicKey(callerSk);
+
+  const isExisting = listings.member(disclose(listingId));
+  if (isExisting) {
+    const existing = listings.lookup(disclose(listingId));
+    assert(disclose(existing.landlordPk == callerPk), "Only listing owner can update criteria");
+  }
+  const version: Uint<32> = isExisting ? ((listings.lookup(disclose(listingId)).criteriaVersion + 1) as Uint<32>) : 1;
+
+  const cHash = computeCriteriaHash(
+    listingId,
+    version,
+    monthlyRent,
+    minMonthlyIncome,
+    maxRentToIncomeRatioBps,
+    minCreditScore
+  );
+
+  const newCriteria = ListingCriteria {
+    landlordPk: disclose(callerPk),
+    criteriaVersion: disclose(version),
+    criteriaHash: disclose(cHash),
+    monthlyRent: disclose(monthlyRent),
+    minMonthlyIncome: disclose(minMonthlyIncome),
+    maxRentToIncomeRatioBps: disclose(maxRentToIncomeRatioBps),
+    minCreditScore: disclose(minCreditScore),
+    requireCleanBackground: disclose(requireCleanBackground),
+    minEmploymentMonths: disclose(minEmploymentMonths),
+    primeMinIncomeRatioBps: disclose(primeMinIncomeRatioBps),
+    primeMinCreditScore: disclose(primeMinCreditScore),
+    active: disclose(active)
   };
+
+  listings.insert(disclose(listingId), newCriteria);
+}
+
+// -----------------------------------------------------------------------------
+// Tenant Circuit: Prove Qualification Zero-Knowledge
+// -----------------------------------------------------------------------------
+
+export circuit proveQualification(
+  listingId: Bytes<32>,
+  applicationId: Bytes<32>,
+  currentTime: Uint<64>
+): [] {
+  assertNotPaused();
+  assert(listings.member(disclose(listingId)), "Listing does not exist");
+  const listing = listings.lookup(disclose(listingId));
+  assert(listing.active, "Listing is not active");
+
+  // Obtain private witnesses (client-side only)
+  const attestation = getAttestation();
+  const tenantSecret = getTenantSecret();
+  const tenantSalt = getTenantSalt();
+
+  // 1. Time bounds verification
+  assert(currentTime >= attestation.issuedAt, "Attestation not yet valid");
+  assert(currentTime <= attestation.expiresAt, "Attestation has expired");
+
+  // 2. Tenant commitment check
+  const expectedCommitment = persistentHash<Vector<3, Bytes<32>>>([
+    pad(32, "zkrent:tenant:"),
+    applicationId,
+    tenantSalt
+  ]);
+  assert(disclose(attestation.subjectCommitment == expectedCommitment), "Commitment mismatch");
+
+  // 3. Multi-criteria verification (Division-Free Math)
+  // Income requirement: annualIncome >= minMonthlyIncome * 12
+  const minAnnualIncome = (listing.minMonthlyIncome * 12) as Uint<64>;
+  assert(attestation.annualIncome >= minAnnualIncome, "Income below requirement");
+
+  // Rent-to-income ratio requirement:
+  // monthlyRent * 120000 <= annualIncome * maxRentToIncomeRatioBps
+  const rentRatioLhs = (listing.monthlyRent * 120000) as Uint<64>;
+  const rentRatioRhs = (attestation.annualIncome * (listing.maxRentToIncomeRatioBps as Uint<64>)) as Uint<64>;
+  assert(rentRatioLhs <= rentRatioRhs, "Rent-to-income ratio exceeds maximum allowed");
+
+  // Credit score and employment tenure checks
+  assert(attestation.creditScore >= listing.minCreditScore, "Credit score below minimum");
+  assert(attestation.employmentMonths >= listing.minEmploymentMonths, "Employment history insufficient");
+
+  // Background check
+  if (listing.requireCleanBackground) {
+    assert(attestation.backgroundClean == true, "Clean background check required");
+  }
+
+  // 4. Derive Coarse Qualification Tier
+  // Prime: rent * 120000 <= annualIncome * primeMinIncomeRatioBps AND creditScore >= primeMinCreditScore
+  const primeRatioRhs = (attestation.annualIncome * (listing.primeMinIncomeRatioBps as Uint<64>)) as Uint<64>;
+  const meetsPrimeRatio = rentRatioLhs <= primeRatioRhs;
+  const meetsPrimeCredit = attestation.creditScore >= listing.primeMinCreditScore;
+  const isPrime = meetsPrimeRatio && meetsPrimeCredit;
+  const tierValue: Uint<8> = isPrime ? 1 : 0;
+
+  // 5. Anti-Replay Nullifier Verification
+  const nullifier = persistentHash<Vector<3, Bytes<32>>>([
+    pad(32, "zkrent:null:"),
+    tenantSecret,
+    listingId
+  ]);
+  assert(!nullifierSet.member(disclose(nullifier)), "Applicant already proved qualification for this listing");
+  nullifierSet.insert(disclose(nullifier));
+
+  // 6. Record Application Status On-Chain (30-day validity)
+  const validityPeriod: Uint<64> = 2592000; // 30 days in seconds
+  const proofExpiresAt: Uint<64> = (currentTime + validityPeriod) as Uint<64>;
+
+  const statusRecord = ApplicationStatusRecord {
+    listingId: disclose(listingId),
+    criteriaHash: listing.criteriaHash,
+    tenantCommitment: disclose(expectedCommitment),
+    tier: disclose(tierValue),
+    lifecycle: RecordLifecycle.Active,
+    verifiedAt: disclose(currentTime),
+    expiresAt: disclose(proofExpiresAt)
+  };
+
+  applicationRecords.insert(disclose(applicationId), statusRecord);
+}
+
+// -----------------------------------------------------------------------------
+// Lease Execution Circuit: Consume Qualification
+// -----------------------------------------------------------------------------
+
+export circuit consumeQualification(applicationId: Bytes<32>): [] {
+  assertNotPaused();
+  assert(applicationRecords.member(disclose(applicationId)), "Application not found");
+  const record = applicationRecords.lookup(disclose(applicationId));
+  assert(record.lifecycle == RecordLifecycle.Active, "Qualification is not in active state");
+
+  // Verify caller is the landlord for this listing
+  const listing = listings.lookup(disclose(record.listingId));
+  const callerSk = getCallerSecret();
+  const callerPk = getPublicKey(callerSk);
+  assert(disclose(callerPk == listing.landlordPk), "Only listing landlord can execute lease consumption");
+
+  const updatedRecord = ApplicationStatusRecord {
+    listingId: record.listingId,
+    criteriaHash: record.criteriaHash,
+    tenantCommitment: record.tenantCommitment,
+    tier: record.tier,
+    lifecycle: RecordLifecycle.Consumed,
+    verifiedAt: record.verifiedAt,
+    expiresAt: record.expiresAt
+  };
+
+  applicationRecords.insert(disclose(applicationId), updatedRecord);
+}
+
+// -----------------------------------------------------------------------------
+// Revocation Circuit: Tenant Withdraws Application
+// -----------------------------------------------------------------------------
+
+export circuit revokeQualification(applicationId: Bytes<32>): [] {
+  assertNotPaused();
+  assert(applicationRecords.member(disclose(applicationId)), "Application not found");
+  const record = applicationRecords.lookup(disclose(applicationId));
+  assert(record.lifecycle == RecordLifecycle.Active, "Only active qualification can be revoked");
+
+  // Verify tenant ownership via salt
+  const tenantSalt = getTenantSalt();
+  const callerCommitment = persistentHash<Vector<3, Bytes<32>>>([
+    pad(32, "zkrent:tenant:"),
+    applicationId,
+    tenantSalt
+  ]);
+  assert(disclose(callerCommitment == record.tenantCommitment), "Only applicant can revoke application");
+
+  const updatedRecord = ApplicationStatusRecord {
+    listingId: record.listingId,
+    criteriaHash: record.criteriaHash,
+    tenantCommitment: record.tenantCommitment,
+    tier: record.tier,
+    lifecycle: RecordLifecycle.Revoked,
+    verifiedAt: record.verifiedAt,
+    expiresAt: record.expiresAt
+  };
+
+  applicationRecords.insert(disclose(applicationId), updatedRecord);
 }

@@ -50,3 +50,48 @@ This log tracks real changes made to the ZkRent codebase across master plan phas
   - Consolidated Docker compose environment into a single `docker-compose.yml` (Postgres + Midnight proof-server, node, indexer) and removed redundant `compose.yml` and `proof-server.yml`.
   - Created `.github/workflows/ci.yml` for automated lint, typecheck, build, and test verification.
 
+---
+
+## Phase 2: Smart Contract & Midnight Integration (Completed)
+
+### Step A: Architectural Redesign
+- Published and approved `docs/PHASE2_DESIGN.md` (Revision 2.0) resolving all 10 architectural review items:
+  1. Landlord listing ownership key model and criteria version binding.
+  2. Public queryable application status decoupled from private nullifier sets.
+  3. Tenant commitment binding (`zkrent:tenant:applicationId:salt`) to eliminate application squatting.
+  4. Coarse qualification tiering (Standard Tier 0 vs Prime Tier 1).
+  5. Deterministic on-chain time assertion bounds.
+  6. Strict threat modeling and privacy invariants for proof server deployment modes.
+  7. Lifecycle states (`Active`, `Consumed`, `Revoked`, `Expired`) and admin emergency pause.
+  8. Division-free cross-multiplication for rent-to-income ratios (`rent * 120000 <= income * maxRatioBps`).
+  9. Pre-formatted attestation structure for future issuer signature verification.
+  10. Constraint profiling plan and comprehensive T1–T8 test suite.
+
+### Step B: Implementation & Toolchain Verification
+- **Compact Compiler Native Toolchain**:
+  - Installed native `compact` compiler v0.5.3 (language 0.26.0, runtime 0.19.0, ledger 9.1.0-rc.3).
+  - Added `"compact:compile"` script to `package.json`.
+- **Smart Contract Implementation (`contracts/qualification.compact`)**:
+  - Implemented 5 circuits: `registerListingCriteria`, `proveQualification`, `consumeQualification`, `revokeQualification`, `setPaused`.
+  - Compiled contract successfully into `contracts/managed/qualification`, generating TypeScript runtime bindings and ZK proving/verification keys.
+- **Witnesses & Prover Overhaul**:
+  - Implemented client-side witness provider functions (`getAttestation`, `getTenantSecret`, `getTenantSalt`, `getCallerSecret`) in `src/midnight/witnesses.ts`.
+  - Updated prover engine `src/midnight/zk.ts` and `src/lib/verification.ts` to execute division-free multi-criteria checks and emit coarse tiers, nullifiers, and criteria hashes.
+- **Privacy Enforcement on API**:
+  - Refactored `POST /api/verifications/prove` and `ZkRentContext.tsx`: client generates ZK proof locally; API accepts only the cryptographic proof envelope (`proofResult`). Raw income and credentials never leave the tenant's browser.
+- **Database & Prisma Schema**:
+  - Added criteria columns (`maxRentToIncomeRatioBps`, `minCreditScore`, `minEmploymentMonths`, `primeMinIncomeRatioBps`, `primeMinCreditScore`) to `Property`.
+  - Added verification metadata (`tier`, `nullifier`, `criteriaHash`, `expiresAt`, `lifecycle`) to `Verification`.
+  - Updated `scripts/migrate.js` and `scripts/seed.js`. Database migrated and seeded with clean test data.
+- **Contract Test Suite (`scripts/test-contract-circuits.ts`)**:
+  - Built comprehensive test suite verifying scenarios T1 through T8 and lease consumption lifecycle.
+  - Integrated into `scripts/run-tests.js`. All 79 automated tests pass cleanly (28 OCR, 18 contract circuits, 33 prover integration).
+- **UI & Landlord Experience**:
+  - Enhanced `VerifyReceiptDrawer.tsx` to prominently display coarse tier badges, anti-replay nullifiers, criteria hashes, and prominent `[SIMULATION MODE]` badges when offline.
+  - Enhanced landlord requirements editor (`requirements/page.tsx`) with interactive sliders for max rent-to-income ratio, minimum credit score, and employment tenure.
+- **Build & Quality Gates**:
+  - `npm run typecheck`: 0 errors.
+  - `npm run lint`: 0 errors (195 warnings).
+  - `npm run build`: All 31 routes built successfully with Turbopack.
+
+

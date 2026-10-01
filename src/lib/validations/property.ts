@@ -19,6 +19,11 @@ export const createPropertySchema = z.object({
   requireBackground: z.boolean().default(true),
   requireEmployment: z.boolean().default(true),
   verificationFee: z.coerce.number().min(0).default(5.0),
+  maxRentToIncomeRatioBps: z.coerce.number().int().min(1000).max(6000).default(3300),
+  minCreditScore: z.coerce.number().int().min(300).max(850).default(650),
+  minEmploymentMonths: z.coerce.number().int().min(0).max(120).default(12),
+  primeMinIncomeRatioBps: z.coerce.number().int().min(1000).max(5000).default(2500),
+  primeMinCreditScore: z.coerce.number().int().min(300).max(850).default(750),
 });
 
 export const updatePropertySchema = createPropertySchema.partial();
@@ -28,4 +33,9 @@ export const updatePropertyRequirementsSchema = z.object({
   requireBackground: z.boolean(),
   requireEmployment: z.boolean(),
   verificationFee: z.coerce.number().min(0).default(5.0),
+  maxRentToIncomeRatioBps: z.coerce.number().int().min(1000).max(6000).optional().default(3300),
+  minCreditScore: z.coerce.number().int().min(300).max(850).optional().default(650),
+  minEmploymentMonths: z.coerce.number().int().min(0).max(120).optional().default(12),
+  primeMinIncomeRatioBps: z.coerce.number().int().min(1000).max(5000).optional().default(2500),
+  primeMinCreditScore: z.coerce.number().int().min(300).max(850).optional().default(750),
 });
