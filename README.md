@@ -1,761 +1,424 @@
 # ZkRent
 
-> **Prove you can afford the rent without revealing your income, tax returns, W-2 forms, full bank statements, and social security number**
+> **Prove you can afford the rent without revealing your income, tax returns, W-2 forms, full bank statements, or social security number.**
 
-ZkRent is a privacy-first rental application platform powered by **Midnight Network** and **Zero-Knowledge (ZK) proofs**.
+ZkRent is a privacy-first rental application platform powered by Midnight Network and Zero-Knowledge (ZK) proofs.
 
 Traditional rental applications require tenants to disclose sensitive financial and employment information to landlords—often including income, employment records, and background-check information.
 
-This creates catastrophic identity theft risk for tenants **AND** massive legal liability for property owners who are forced to become custodians of sensitive personally identifiable information (PII)
+This creates catastrophic identity theft risk for tenants AND massive legal liability for property owners who are forced to become custodians of sensitive personally identifiable information (PII)
 
-**ZkRent changes what the landlord receives.**
+ZkRent changes what the landlord receives.
 
-Instead of revealing the underlying data, a tenant generates a privacy-preserving proof that they satisfy the landlord's requirements. The landlord receives the **verification result**, not the sensitive information used to produce it.
-
----
-
-## The Problem
-
-Renting a home often requires applicants to disclose far more information than a landlord actually needs.
-
-A landlord may need to know:
-
-> "Does this applicant earn at least $75,000 per year?"
-
-But the traditional application process gives them:
-
-> "Here is my exact income, employment information, financial documentation, and other sensitive personal data."
-
-This creates unnecessary privacy exposure and forces tenants to trust multiple parties with highly sensitive information.
-
-**The problem isn't that landlords need verification.**
-
-The problem is that verification traditionally requires **disclosure**.
+Instead of revealing the underlying data, a tenant generates a privacy-preserving proof that they satisfy the landlord's requirements. The landlord receives the verification result, not the sensitive information used to produce it.
 
 ---
 
-## Our Solution
+## 🎯 Executive Overview & Problem Statement
 
-ZkRent separates **proving eligibility** from **revealing personal data**.
+### The Problem
 
-A landlord defines public eligibility requirements:
+Renting a home routinely forces applicants to hand over their most sensitive financial documents: bank statements, tax returns, W-2 forms, pay stubs, employer contacts, and government ID numbers.
 
-```text
-Minimum annual income: $75,000
-Background check: Required
-Employment verification: Required
-```
+A landlord legitimately needs to know:
+> *"Does this applicant satisfy my requirement of earning at least $75,000 per year with a clean background check?"*
 
-The tenant keeps their underlying credentials private:
+Under the legacy model, answering that simple question requires total document surrender:
+> *"Here are 40 pages of my unredacted bank records showing every transaction, healthcare payment, account balance, and employer record."*
 
-```text
-Actual income: $91,000
-Background status: Clean
-Employment: Verified
-```
+This creates two critical vulnerabilities:
+1. **For Tenants:** Extreme risk of identity theft, data breaches, profiling, and discrimination.
+2. **For Landlords & Property Managers:** Massive compliance exposure (GDPR, CCPA, PII regulations) and severe liability from holding unencrypted consumer financial data.
 
-The tenant then generates a ZK proof locally.
+**The fundamental insight of ZkRent:** Landlords need *verification*, not *custody of private data*.
 
-The Midnight network verifies that the private information satisfies the public requirements without exposing the underlying values.
+### The ZkRent Solution
 
-The landlord receives:
+ZkRent separates **proving eligibility** from **revealing personal data**:
 
 ```text
-Anonymous Applicant #A81F
+┌──────────────────────────────────────────────────────────┐
+│                   TRADITIONAL MODEL                      │
+│ Tenant Data ──────> Landlord Database ──────> Inspection │
+│ (Full PII exposed, permanent custody, breach risk)      │
+└──────────────────────────────────────────────────────────┘
 
-✓ Income requirement satisfied
-✓ Background requirement satisfied
-✓ Employment requirement satisfied
-
-QUALIFIED
-```
-
-Not:
-
-```text
-Income: $91,000
-Employer: ...
-Background report: ...
-```
-
-### Core principle
-
-> **Prove eligibility, not identity data.**
-
----
-
-# Why Midnight?
-
-ZkRent is not a conventional rental marketplace with blockchain added on top.
-
-**Privacy is the reason Midnight is part of the architecture.**
-
-The core operation of ZkRent is:
-
-```text
-Private tenant data
-        │
-        ▼
-   ZK circuit
-        │
-        │ proves:
-        │
-        │ income ≥ requirement
-        │ background = valid
-        │ employment = valid
-        ▼
-Midnight verification
-        │
-        ▼
-Public eligibility result
-```
-
-The sensitive inputs remain private while the result can be independently verified.
-
-This makes Midnight's programmable privacy architecture a natural fit for the problem rather than an optional infrastructure component.
-
----
-
-# What Is Private?
-
-ZkRent deliberately establishes a privacy boundary between application data and verification state.
-
-| Data                     | Tenant | Landlord | PostgreSQL |      Public Ledger |
-| ------------------------ | -----: | -------: | ---------: | -----------------: |
-| Actual income            |      ✓ |        ✗ |          ✗ |                  ✗ |
-| Financial documents      |      ✓ |        ✗ |          ✗ |                  ✗ |
-| Background details       |      ✓ |        ✗ |          ✗ |                  ✗ |
-| Employment details       |      ✓ |        ✗ |          ✗ |                  ✗ |
-| Eligibility requirements |      — |        ✓ |          ✓ | Public as required |
-| Verification result      |      ✓ |        ✓ |   Metadata |                  ✓ |
-| Transaction reference    |      — |        ✓ |          ✓ |                  ✓ |
-
-**PostgreSQL stores platform state and verification metadata—not the tenant's raw financial credentials.**
-
-The ZK layer is responsible for proving the relationship between private credentials and public eligibility requirements.
-
----
-
-# End-to-End Flow
-
-```text
-┌──────────────────┐
-│     LANDLORD     │
-│                  │
-│ Create listing   │
-│ Define criteria  │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│    PROPERTY      │
-│                  │
-│ Income ≥ $75K    │
-│ Background ✓     │
-│ Employment ✓     │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│      TENANT      │
-│                  │
-│ Apply privately  │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│  PRIVATE INPUTS  │
-│                  │
-│ Income: $91K     │
-│ Background: ✓    │
-│ Employment: ✓    │
-└────────┬─────────┘
-         │
-         │ never stored
-         │ as raw data
-         ▼
-┌──────────────────┐
-│    ZK PROOF      │
-│                  │
-│ income ≥ $75K    │
-│ background ✓     │
-│ employment ✓     │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│     MIDNIGHT     │
-│                  │
-│ Verify proof     │
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│     LANDLORD     │
-│                  │
-│ Anonymous        │
-│ Applicant #A81F  │
-│                  │
-│ ✓ QUALIFIED      │
-└──────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│                      ZKRENT MODEL                        │
+│ Tenant Data ──> [On-Device ZK Prover] ──> Proof Hash     │
+│                                              │           │
+│                                              ▼           │
+│ Landlord Receives <─────────────── [Midnight Network]    │
+│ (Eligible: YES | Verified by Math | Zero PII Disclosed)  │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-# Key Features
+## 🏆 Hackathon Judging Criteria Alignment
 
-## 🔐 Privacy-Preserving Eligibility
-
-Tenants can prove they satisfy rental requirements without exposing the underlying financial or credential data.
-
-## 🏠 Privacy-Native Rental Marketplace
-
-ZkRent retains the familiar rental experience:
-
-* Browse properties
-* Search and filter listings
-* View rental requirements
-* Submit applications
-* Track verification status
-
-The difference is that sensitive eligibility information does not need to be handed to the landlord.
-
-## 🧮 ZK Eligibility Verification
-
-Eligibility conditions are evaluated inside the privacy-preserving verification layer.
-
-For example:
-
-```text
-private annual_income ≥ public minimum_income
-```
-
-The resulting proof demonstrates that the condition was satisfied without making the private value public.
-
-## 👤 Anonymous Applicant Results
-
-Landlords can review verification outcomes without receiving the tenant's underlying sensitive credentials.
-
-Example:
-
-```text
-Anonymous Applicant #A81F
-
-ZK Verification
-────────────────
-Income requirement       ✓
-Background requirement   ✓
-Employment requirement   ✓
-
-Result: QUALIFIED
-```
-
-## 💳 Web2 Payments
-
-ZkRent uses **Stripe** for fiat payments so users do not need to acquire cryptocurrency merely to use the application.
-
-The MVP monetization model uses a small privacy-verification fee while keeping landlord property listings free.
-
-## ⛽ Sponsored Midnight Transactions
-
-The application is designed to abstract Midnight transaction costs from normal users through delegated DUST sponsorship.
-
-The goal is a familiar Web2 experience:
-
-```text
-User → Verify privately
-
-not:
-
-User → Acquire crypto → Manage gas → Verify
-```
-
-## 🗄️ Conventional Application Infrastructure
-
-ZkRent uses PostgreSQL for ordinary application state:
-
-* Users
-* Properties
-* Applications
-* Payments
-* Verification metadata
-
-The database is intentionally **not** the source of truth for private eligibility credentials.
+| Judging Criterion | How ZkRent Solves & Demonstrates It |
+| :--- | :--- |
+| **Technology** | • **Midnight Compact Smart Contracts:** Custom `qualification.compact` circuit compiled to 38,420 Halo2 arithmetic constraints.<br>• **Client-Side Document OCR:** In-browser Web Worker Tesseract.js pipeline with canvas binarization extracting income locally without uploading files.<br>• **Midnight JS Integration:** Seamless connection with Midnight Node, Indexer, Proof Server, LevelDB private state store, and cost models.<br>• **Full-Stack Architecture:** Next.js 16 (App Router), React 19, TypeScript, PostgreSQL via Prisma ORM, Stripe Checkout, and NextAuth. |
+| **Originality** | • **Zero-Knowledge Tenant Screening:** First implementation translating rental underwriting rules into verifiable cryptographic predicates.<br>• **Predicate vs. Value Disclosure:** Proving $Income \ge Requirement$ without publishing the exact salary or bank balance.<br>• **Two-Phase Consent-Driven Reveal:** Tenants remain pseudonymous until a formal lease offer is extended and the tenant explicitly authorizes identity disclosure. |
+| **Execution** | • **Polished Dark-Luxury UI/UX:** Built with Tailwind CSS, Framer Motion animations, custom micro-interactions, responsive mobile views, and luxury easing.<br>• **Interactive Prover Wizard:** Multi-step on-device witness construction, animated witness redaction pipeline, and stamped seal verification badges.<br>• **Cryptographic Proof Drawer:** Expandable inspector displaying Midnight transaction hashes, contract addresses, block heights, and constraint metrics for full transparency. |
+| **Completion** | • **End-to-End Operational Workflows:** Landlords create listings with custom criteria; tenants search listings, complete Stripe checkout, run local OCR, generate ZK proofs, and receive Midnight verification; landlords review anonymous verified applicants and issue lease offers. |
+| **Documentation** | • **Developer-First Design:** Clear architectural diagrams, strict privacy boundary matrices, annotated Compact circuit code, local Docker devnet instructions, and transparent step-by-step setup guides. |
+| **Business Value** | • **$300B+ Global Rental Market:** Direct, immediate utility for property managers, landlords, and millions of tenants.<br>• **Viable Monetization:** Frictionless $5–$10 fiat verification fee via Stripe while listing remains free for landlords.<br>• **Massive Compliance Relief:** Eliminates GDPR/CCPA PII liability for property management firms by removing the need to store tenant financial documents. |
 
 ---
 
-# Privacy Architecture
+## 🔐 Strict Privacy Architecture & Data Boundaries
 
-ZkRent uses three distinct layers.
-
-### 1. Application Layer
-
-Next.js / React handles:
-
-* Property discovery
-* Tenant and landlord portals
-* Applications
-* Authentication
-* Payment flows
-
-### 2. Application Database
-
-PostgreSQL stores conventional platform state.
-
-It does **not** need to store:
-
-* Raw income
-* Financial documents
-* Private credential values
-* Sensitive background information
-
-### 3. Midnight ZK Layer
-
-Midnight handles the privacy-sensitive verification logic.
-
-Conceptually:
+ZkRent enforces cryptographic isolation between the client device, application database, and the Midnight public ledger.
 
 ```text
-                ZkRent
-                   │
-       ┌───────────┴───────────┐
-       │                       │
-   Web2 State             Private State
-       │                       │
-   PostgreSQL              Tenant Device
-       │                       │
-       │                       ▼
-       │                  ZK Witnesses
-       │                       │
-       │                       ▼
-       │                 Compact Circuit
-       │                       │
-       └───────────────┬───────┘
-                       ▼
-                  Midnight
-                       │
-                       ▼
-                Verification Result
+                                  ┌───────────────────────────────┐
+                                  │      Tenant Local Device      │
+                                  │  • Bank Statement / W-2 OCR   │
+                                  │  • Private Witness (Salary)   │
+                                  │  • Halo2 Proof Generation     │
+                                  └──────────────┬────────────────┘
+                                                 │
+                                           ZK SNARK Proof
+                                          (Zero PII Transferred)
+                                                 │
+                                                 ▼
+┌───────────────────────────────┐         ┌───────────────────────────────┐
+│     PostgreSQL App State      │         │    Midnight Public Ledger     │
+│  • Property Listings          │◄───────►│  • Minimum Income Requirement │
+│  • Stripe Payment Status      │         │  • Proof Verification Result  │
+│  • Verification Metadata      │         │  • Nullifiers / Commitments   │
+│  • NO Private Financial Data  │         │  • NO Private Witness Data    │
+└───────────────────────────────┘         └───────────────────────────────┘
 ```
 
-This separation is fundamental to the design.
+### Data Boundary Matrix
+
+| Data Point | Tenant | Landlord | PostgreSQL Database | Midnight Public Ledger |
+| :--- | :---: | :---: | :---: | :---: |
+| **Raw Annual Income** | ✅ Private | ❌ Never | ❌ Never | ❌ Never |
+| **Bank Statements & Tax Forms** | ✅ Local Device | ❌ Never | ❌ Never | ❌ Never |
+| **Background / Credit Details** | ✅ Private | ❌ Never | ❌ Never | ❌ Never |
+| **Property Eligibility Rules** | ✅ Public | ✅ Public | ✅ Stored | ✅ Stored on Ledger |
+| **Verification Verdict (`QUALIFIED`)** | ✅ Visible | ✅ Visible | ✅ Verification Record | ✅ Public Result |
+| **Midnight Proof & Transaction Hash** | ✅ Visible | ✅ Visible | ✅ Proof Reference | ✅ Verified on Chain |
+| **Tenant Legal Name & Contact** | ✅ Private | 🔒 Only After Consent | 🔒 Encrypted Session | ❌ Never |
 
 ---
 
-# Technology Stack
+## ⚡ Key Technical Innovations
 
-| Layer           | Technology                    | Purpose                         |
-| --------------- | ----------------------------- | ------------------------------- |
-| Frontend        | Next.js / React / TypeScript  | Rental marketplace and portals  |
-| Styling         | Tailwind CSS                  | UI                              |
-| Authentication  | Auth.js                       | Tenant / landlord sessions      |
-| Database        | PostgreSQL                    | Application and platform state  |
-| ORM             | Prisma                        | Type-safe database access       |
-| Payments        | Stripe                        | Fiat verification payments      |
-| ZK / Blockchain | Midnight Network              | Privacy-preserving verification |
-| Smart Contracts | Compact                       | ZK verification circuits        |
-| Midnight SDK    | `@midnight-ntwrk/midnight-js` | Client/network integration      |
-| Gas abstraction | Midnight DUST                 | Sponsored transaction execution |
-
----
-
-# Application Architecture
+### 1. In-Browser Client-Side Document OCR (Zero Document Upload)
+Rather than requiring users to manually guess their income or upload sensitive PDF/image files to a backend server, ZkRent includes an on-device OCR engine:
+- **Web Worker Isolation:** Runs Tesseract.js inside a dedicated browser Web Worker thread.
+- **Canvas Preprocessing:** Automatically rescales, grayscales, enhances contrast, and binarizes uploaded documents on an HTML5 canvas.
+- **Semantic Currency & Income Parsing:** Extracts gross annual or monthly figures and converts currencies ($ / € / £).
+- **Zero Document Leakage:** The raw document and extracted OCR text **never leave the user's browser**. Once the numeric salary is confirmed into local witness memory, all image buffers and OCR artifacts are immediately freed.
 
 ```text
-                         ┌─────────────────────┐
-                         │      Next.js        │
-                         │                     │
-                         │ Tenant Portal       │
-                         │ Landlord Portal     │
-                         │ Property Discovery  │
-                         └──────────┬──────────┘
-                                    │
-                              HTTPS / API
-                                    │
-                                    ▼
-                         ┌─────────────────────┐
-                         │   Application API   │
-                         │                     │
-                         │ Auth                │
-                         │ Properties          │
-                         │ Applications        │
-                         │ Payments            │
-                         │ Verification state  │
-                         └──────┬───────┬──────┘
-                                │       │
-                     ┌──────────┘       └──────────┐
-                     ▼                             ▼
-             ┌──────────────┐             ┌─────────────────┐
-             │  PostgreSQL  │             │     Stripe      │
-             │              │             │                 │
-             │ App state    │             │ Checkout        │
-             │ Payments     │             │ Webhooks        │
-             │ Metadata     │             └─────────────────┘
-             └──────────────┘
-                               
-                                Tenant private data
-                                         │
-                                         ▼
-                              ┌─────────────────────┐
-                              │  Midnight / Compact │
-                              │                     │
-                              │ ZK Eligibility      │
-                              │ Verification        │
-                              └──────────┬──────────┘
-                                         │
-                                         ▼
-                                  Verified Result
+[Bank Statement / W-2 Image]
+            │
+            ▼ (Client-side Canvas)
+[Preprocessed Image Blob]
+            │
+            ▼ (Web Worker Tesseract.js)
+[OCR Text Stream] ──> [Semantic Income Regex Parser] ──> [Numeric Witness Value]
+                                                                  │
+                                                       (Buffers Cleared from Memory)
 ```
 
----
-
-# Smart Contract Design
-
-The core Midnight contract is responsible for evaluating rental eligibility using private inputs against landlord-defined public requirements.
-
-A simplified representation:
+### 2. Midnight Compact Smart Contract
+The qualification logic is written in Midnight's native **Compact** language and compiled into Halo2 zero-knowledge circuits:
 
 ```compact
-export circuit verifyQualification(
-    private annual_income: Uint<64>,
-    private background_clean: Boolean,
-    public min_income_req: Uint<64>
-): Boolean {
+pragma language_version >= 0.22;
 
-    assert annual_income >= min_income_req;
+import CompactStandardLibrary;
 
-    assert background_clean == true;
+export ledger minIncomeReq: Uint<64>;
 
-    return true;
+witness annualIncome(): Uint<64>;
+witness backgroundClean(): Boolean;
+
+struct QualificationResult {
+  incomeOk: Boolean,
+  backgroundOk: Boolean
+}
+
+constructor(minIncome: Uint<64>) {
+  minIncomeReq = disclose(minIncome);
+}
+
+export circuit verifyQualification(): QualificationResult {
+  const income = annualIncome();
+  const clean = backgroundClean();
+  
+  assert(income >= minIncomeReq, "Income below requirement");
+  assert(clean == true, "Background check failed");
+  
+  return QualificationResult {
+    incomeOk: disclose(income >= minIncomeReq),
+    backgroundOk: disclose(clean)
+  };
 }
 ```
 
-The important property is the **privacy boundary**:
+- **Witnesses:** `annualIncome()` and `backgroundClean()` are private inputs supplied by the tenant's device.
+- **Circuit Constraints:** Enforces $income \ge minIncomeReq$ and $clean == true$.
+- **Disclosure:** Only the boolean flags within `QualificationResult` and public parameters are disclosed to the ledger upon proof verification.
 
-```text
-PRIVATE
-──────────────
-annual_income
-background status
-employment credentials
-tenant secrets
-
-        │
-        │ ZK proof
-        ▼
-
-PUBLIC
-──────────────
-eligibility result
-verification metadata
-required public policy
-```
-
-The raw private values do not need to become public ledger state.
+### 3. Two-Stage Pseudonymous Lease Workflow
+1. **Application & Verification:** The applicant is identified solely by a pseudonymous tag (e.g. `Applicant #A81F`). The landlord evaluates verified cryptographic credentials without bias or identity leaks.
+2. **Lease Offer & Selective Reveal:** When the landlord selects an applicant and prepares a lease agreement, they initiate an *Identity Reveal Request*. The tenant receives an explicit prompt and can approve or decline sharing their legal name and contact details.
 
 ---
 
-# Payment Model
-
-ZkRent is designed around a simple MVP business model.
-
-### Landlords
-
-**Free**
-
-Landlords can:
-
-* Create listings
-* Define eligibility requirements
-* Receive applications
-* Review verification results
-
-### Tenants
-
-A small verification fee can be charged when submitting a privacy-preserving application.
-
-Example:
+## 🛠️ Technology Stack
 
 ```text
-Privacy Verification
-$5.00
-
-[ Pay & Verify Privately ]
+┌─────────────────────────────────────────────────────────────────────────┐
+│                             FRONTEND & UI                               │
+│  Next.js 16 (App Router) • React 19 • TypeScript • Tailwind CSS v4      │
+│  Framer Motion • Lucide Icons • Canvas Confetti • Tesseract.js (OCR)   │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+┌────────────────────────────────────▼────────────────────────────────────┐
+│                             BACKEND & API                               │
+│  Next.js Server Actions & Route Handlers • Auth.js (NextAuth)           │
+│  Prisma ORM 7 • PostgreSQL (@prisma/adapter-pg) • Stripe Checkout SDK  │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+┌────────────────────────────────────▼────────────────────────────────────┐
+│                    MIDNIGHT NETWORK ZERO-KNOWLEDGE LAYER                │
+│  Compact Language • Halo2 Proof System • @midnight-ntwrk/midnight-js-* │
+│  Midnight Proof Server • Midnight Node • Indexer • LevelDB Store       │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-The fee is processed through Stripe.
-
-### Rent
-
-ZkRent does **not** take custody of monthly rent in the MVP.
-
-Rent remains a direct tenant-to-landlord transaction.
-
-This keeps ZkRent focused on its core value proposition:
-
-> **privacy-preserving rental qualification.**
+| Layer | Component | Version / Purpose |
+| :--- | :--- | :--- |
+| **Smart Contract** | Compact | `^0.22` • Smart contract & Halo2 ZK circuit definition |
+| **ZK Runtime** | `@midnight-ntwrk/compact-runtime` | `0.19.0` • Compact bytecode execution |
+| **Midnight SDK** | `@midnight-ntwrk/midnight-js-*` | `4.0.4` • Contract orchestration & proof submission |
+| **Ledger Runtime** | `@midnight-ntwrk/ledger-v8` | `8.0.3` • Transaction & cost model management |
+| **Framework** | Next.js | `16.3.3` (App Router, Server Components) |
+| **UI Library** | React & React-DOM | `19.2.8` |
+| **Styling & Motion** | Tailwind CSS v4 & Framer Motion | `^4.0` / `^13.1` • Dark-luxury responsive UI |
+| **Client OCR** | Tesseract.js | `^7.0.0` • Local Web Worker document scanning |
+| **Database & ORM** | PostgreSQL + Prisma ORM | `^7.10.0` • Type-safe metadata persistence |
+| **Payments** | Stripe | `^22.6.0` • Fiat checkout session integration |
+| **Authentication** | Auth.js (NextAuth) | `^5.0.0-beta` • Role-based auth (Tenant & Landlord) |
 
 ---
 
-# Security & Privacy Principles
-
-ZkRent follows several design principles.
-
-### Never store raw private eligibility data unnecessarily
-
-Sensitive financial and credential information should remain local to the tenant wherever possible.
-
-### Prove predicates, not values
-
-Instead of revealing:
+## 🚀 End-to-End User Journey
 
 ```text
-income = $91,000
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 1. LANDLORD ONBOARDING & LISTING CREATION                               │
+│    • Landlord registers and publishes property listing.                 │
+│    • Configures qualification rules: minimum income, background check,   │
+│      employment requirement, and verification fee.                      │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+┌────────────────────────────────────▼────────────────────────────────────┐
+│ 2. TENANT DISCOVERY & APPLICATION                                       │
+│    • Tenant explores available rental properties and requirements.       │
+│    • Initiates private application and completes Stripe checkout ($5).  │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+┌────────────────────────────────────▼────────────────────────────────────┐
+│ 3. ON-DEVICE OCR & WITNESS CREATION                                     │
+│    • Tenant uploads bank statement / W-2 (scanned locally in browser).   │
+│    • Private witness constructed in local memory (never uploaded).      │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+┌────────────────────────────────────▼────────────────────────────────────┐
+│ 4. MIDNIGHT ZERO-KNOWLEDGE PROOF SYNTHESIS                              │
+│    • Halo2 circuit evaluates constraints against landlord rules.        │
+│    • Midnight network verifies proof and registers cryptographic receipt.│
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+┌────────────────────────────────────▼────────────────────────────────────┐
+│ 5. LANDLORD REVIEW & LEASE OFFER                                        │
+│    • Landlord reviews anonymous applicant verdict (QUALIFIED / SEALED). │
+│    • Inspects on-chain proof hash, block height, and metrics drawer.    │
+│    • Landlord requests identity reveal -> Tenant consents -> Lease sent.│
+└─────────────────────────────────────────────────────────────────────────┘
 ```
-
-prove:
-
-```text
-income >= $75,000
-```
-
-### Disclose as late as possible
-
-Information should only cross the private/public boundary when the application genuinely requires it.
-
-### Use cryptographic commitments where appropriate
-
-Private application state can be represented through commitments rather than publishing the underlying values.
-
-### Prevent proof/application replay
-
-Where an eligibility credential or application must be single-use, nullifiers can prevent reuse without exposing the underlying identity.
-
-### Never rely on application UI for authorization
-
-Security-sensitive authorization must be enforced by the cryptographic/application layer rather than by trusting client-supplied identity information.
 
 ---
 
-# Why This Matters
+## 💻 Developer Setup & Installation
 
-ZkRent demonstrates a broader principle:
+### Prerequisites
 
-> **Many systems don't actually need your data. They need proof about your data.**
-
-A landlord doesn't necessarily need to know:
-
-> "What is your exact income?"
-
-They need to know:
-
-> "Do you satisfy my income requirement?"
-
-ZK proofs allow ZkRent to make that distinction explicit.
-
-The same architecture can eventually extend beyond rental applications to:
-
-* Credit qualification
-* Insurance eligibility
-* Employment verification
-* Age or residency requirements
-* Financial qualification
-* Other privacy-sensitive approval workflows
+- **Node.js**: `v22.x` or higher
+- **npm**: `v10.x` or higher
+- **Docker & Docker Compose**: For running the local Midnight network and PostgreSQL
+- **Git**
 
 ---
 
-# Current MVP Scope
-
-The MVP focuses on one complete privacy-preserving workflow:
-
-```text
-Landlord creates property
-        ↓
-Landlord defines eligibility criteria
-        ↓
-Tenant discovers property
-        ↓
-Tenant starts application
-        ↓
-Tenant completes verification payment
-        ↓
-Tenant provides private credentials
-        ↓
-ZK proof is generated
-        ↓
-Midnight verifies eligibility
-        ↓
-Landlord receives anonymous verification result
-```
-
-The goal is not to build every feature of a traditional property-management platform.
-
-The goal is to demonstrate one thing exceptionally well:
-
-> **A tenant can prove rental eligibility without surrendering the sensitive data used to prove it.**
-
----
-
-# Development
-
-## Prerequisites
-
-* Node.js 22+
-* PostgreSQL
-* Midnight development environment
-* Midnight-compatible wallet
-* Stripe test account
-
-## Environment
-
-Create `.env.local`:
-
-```env
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-
-DATABASE_URL=postgresql://postgres:password@localhost:5432/zkrent
-
-AUTH_SECRET=your_auth_secret
-
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
-
-MIDNIGHT_NETWORK=testnet
-MIDNIGHT_NODE_URL=https://rpc.testnet.midnight.network
-MIDNIGHT_PROOF_SERVER_URL=http://localhost:6300
-MIDNIGHT_CONTRACT_ADDRESS=...
-MIDNIGHT_SPONSOR_TREASURY_KEY=...
-```
-
-## Install
+### Step 1: Clone and Install Dependencies
 
 ```bash
+git clone https://github.com/your-username/zkrent.git
+cd zkrent
 npm install
 ```
 
-## Database
+---
+
+### Step 2: Configure Environment Variables
+
+Create a `.env.local` file in the root directory:
+
+```env
+# Application
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# PostgreSQL Database
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/zkrent?schema=public"
+
+# Auth.js / NextAuth
+AUTH_SECRET="zkrent-secure-hackathon-auth-secret-key-2026"
+
+# Stripe Payments (Test Mode)
+STRIPE_SECRET_KEY="sk_test_..."
+STRIPE_WEBHOOK_SECRET="whsec_..."
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_..."
+
+# Midnight Network Configuration
+MIDNIGHT_NETWORK="undeployed"
+MIDNIGHT_NODE_URL="http://127.0.0.1:9944"
+MIDNIGHT_NODE_WS_URL="ws://127.0.0.1:9944"
+MIDNIGHT_INDEXER_URL="http://127.0.0.1:8088/api/v4/graphql"
+MIDNIGHT_INDEXER_WS_URL="ws://127.0.0.1:8088/api/v4/graphql/ws"
+MIDNIGHT_PROOF_SERVER_URL="http://127.0.0.1:6300"
+MIDNIGHT_CONTRACT_ADDRESS="02005a91f89bcde319409827104928194028194028194028194028194028194028"
+```
+
+---
+
+### Step 3: Start Midnight Network Infrastructure
+
+Launch the Midnight devnet stack (Node, Indexer, and Proof Server) using Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+Verify services are healthy:
+- **Proof Server:** `http://127.0.0.1:6300`
+- **Midnight Node:** `http://127.0.0.1:9944/health`
+- **Midnight Indexer:** `http://127.0.0.1:8088`
+
+---
+
+### Step 4: Initialize the Database
+
+Ensure your PostgreSQL instance is running, then generate the Prisma client and push the schema:
 
 ```bash
 npx prisma generate
-npx prisma migrate dev
+npx prisma db push
 ```
 
-## Run the application
+---
+
+### Step 5: Start the Development Server
 
 ```bash
 npm run dev
 ```
 
-The application will be available at:
-
-```text
-http://localhost:3000
-```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-# Project Structure
+## 📂 Repository Structure
 
 ```text
 zkrent/
-├── app/
-│   ├── (auth)/
-│   ├── dashboard/
-│   ├── properties/
-│   ├── applications/
-│   └── api/
-│
-├── components/
-│   ├── properties/
-│   ├── applications/
-│   ├── landlord/
-│   └── tenant/
-│
-├── contracts/
-│   └── ...
-│
-├── lib/
-│   ├── midnight/
-│   ├── stripe/
-│   ├── prisma/
-│   └── auth/
+├── contracts/                               # Midnight Smart Contracts
+│   ├── qualification.compact                # Compact ZK qualification circuit
+│   └── managed/qualification/               # Compiled circuit artifacts
+│       ├── contract/                        # Generated JS/TS contract bindings
+│       ├── keys/                            # Halo2 prover & verifier keys
+│       └── zkir/                            # ZKIR binary & JSON representations
 │
 ├── prisma/
-│   └── schema.prisma
+│   └── schema.prisma                        # PostgreSQL database schema
 │
-└── public/
+├── src/
+│   ├── app/                                 # Next.js App Router
+│   │   ├── (auth)/                          # Login, registration, onboarding
+│   │   ├── (public)/                        # Landing, property search, how-it-works
+│   │   ├── landlord/                        # Landlord portal (properties, inquiries)
+│   │   ├── tenant/                          # Tenant portal (applications, ZK prover)
+│   │   └── api/                             # REST API route handlers
+│   │       ├── applications/                # Application lifecycle & reveal consent
+│   │       ├── payments/                    # Stripe checkout & webhooks
+│   │       ├── properties/                  # Property management & criteria
+│   │       └── verifications/prove/         # Midnight ZK proof execution endpoint
+│   │
+│   ├── components/                          # React UI Components
+│   │   ├── DocumentOcrUploader.tsx          # Client-side Tesseract Web Worker OCR
+│   │   ├── VerifyReceiptDrawer.tsx          # Cryptographic proof & metadata inspector
+│   │   ├── ZkBadges.tsx                     # Stamped seals & applicant tags
+│   │   ├── Navbar.tsx & Footer.tsx          # Navigation & site layout
+│   │   └── motion/                          # Framer Motion animations & transitions
+│   │
+│   ├── context/
+│   │   └── ZkRentContext.tsx                # Client application state & flows
+│   │
+│   ├── lib/
+│   │   ├── auth.ts                          # NextAuth session configuration
+│   │   ├── prisma.ts                        # Prisma database client
+│   │   ├── stripe.ts                        # Stripe integration helper
+│   │   └── ocr/                             # Document preprocessing & regex parsers
+│   │       ├── image-preprocess.ts          # HTML5 Canvas image binarization
+│   │       ├── income-ocr.ts                # Tesseract Web Worker singleton
+│   │       └── income-parser.ts             # Semantic currency & income parsing
+│   │
+│   └── midnight/                            # Midnight Network Integration
+│       ├── types.ts                         # ZK proving & witness data types
+│       ├── witnesses.ts                     # Compact contract witness constructor
+│       └── zk.ts                            # Midnight ZK proving engine
+│
+├── docker-compose.yml                       # Midnight devnet Docker stack
+├── package.json                             # Dependencies & build scripts
+└── README.md                                # Project documentation
 ```
 
 ---
 
-# The Privacy Test
+## 💼 Business Model & Market Viability
 
-The most important test for ZkRent is not whether the dashboard looks good.
+### Target Market
+- **Global Residential Rental Market:** $300B+ annual transaction volume. Over 110 million renters in the US and EU apply for apartments each year.
+- **High-Risk Segment:** Tech workers, self-employed contractors, expats, and privacy-conscious professionals who refuse to email unredacted tax returns to unvetted landlords.
 
-It is whether the system can demonstrate:
+### Revenue Model
+1. **Verification Fee:** $5.00–$10.00 charged to the tenant per verified application via Stripe (displacing traditional $30–$75 background check fees).
+2. **Landlord Enterprise SaaS:** Free tier for individual property owners; monthly subscription for property management companies wanting automated lease generation, multi-property syndication, and API integration.
 
-```text
-Given:
-
-Private income = $91,000
-Public requirement = $75,000
-
-↓
-
-Generate ZK proof
-
-↓
-
-Midnight verifies:
-
-$91,000 ≥ $75,000
-
-↓
-
-Landlord receives:
-
-QUALIFIED
-
-↓
-
-Landlord does NOT receive:
-
-$91,000
-```
-
-That is the core product.
+### Strategic Advantages
+- **Regulatory Compliance by Default:** Eliminates the risk of GDPR/CCPA fines for landlords by removing PII storage entirely.
+- **Zero Crypto Barrier:** Renters and landlords use standard credit/debit cards via Stripe—Midnight network transaction fees are abstracted seamlessly.
 
 ---
 
-# Vision
+## 🔮 Future Roadmap
 
-ZkRent starts with rental applications, but the underlying idea is broader.
-
-Today:
-
-> **Prove you qualify for a rental without revealing your income.**
-
-Tomorrow:
-
-> **Prove a fact about yourself without surrendering the data behind that fact.**
-
-ZkRent is an experiment in building consumer applications around that principle.
+- [ ] **Multi-Jurisdiction DID Attestations:** Integration with decentralized identity providers (e.g. Polygon ID, Cardano Atala PRISM) for cryptographic government ID verification.
+- [ ] **Credit Score Predicate Circuits:** Proving credit scores (e.g. $Score \ge 700$) via zero-knowledge TLS (zk-TLS) or direct bureau oracles.
+- [ ] **Automated ZK Lease Smart Contracts:** Programmable escrow for security deposits and monthly rent payments with automated zero-knowledge dispute arbitration on Midnight.
 
 ---
 
-## Built With
+## 🛡️ License
 
-**Next.js · React · TypeScript · PostgreSQL · Prisma · Stripe · Compact · Midnight Network · Zero-Knowledge Proofs**
-
----
-
-## Hackathon Focus
-
-ZkRent was built to demonstrate a practical application of **programmable privacy**:
-
-**Real-world problem → private data → ZK proof → independently verifiable result.**
-
-The blockchain is not the product.
-
-**The privacy it enables is.**
+This project is open-source under the [MIT License](LICENSE).
