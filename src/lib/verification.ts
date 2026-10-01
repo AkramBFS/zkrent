@@ -1,4 +1,5 @@
 import { executeMidnightQualificationProof } from '@/midnight/zk';
+import type { ZkMetrics } from '@/midnight/types';
 
 export interface PropertyQualificationRules {
   minIncome: number;
@@ -9,6 +10,7 @@ export interface PropertyQualificationRules {
   maxRentToIncomeRatioBps?: number;
   minCreditScore?: number;
   minEmploymentMonths?: number;
+  primeMaxRentToIncomeRatioBps?: number;
   primeMinIncomeRatioBps?: number;
   primeMinCreditScore?: number;
   criteriaHash?: string;
@@ -55,12 +57,7 @@ export interface VerificationResult {
     background: { required: boolean; satisfied: boolean; value?: boolean };
     employment: { required: number; satisfied: boolean; value?: number };
   };
-  zkMetrics: {
-    constraints: number;
-    provingTimeMs: number;
-    circuitSize: string;
-    protocolVersion: string;
-  };
+  zkMetrics: ZkMetrics;
 }
 
 export interface IVerifier {
@@ -93,6 +90,7 @@ export class MidnightZkVerifier implements IVerifier {
         minCreditScore: rules.minCreditScore ?? 650,
         minEmploymentMonths: rules.minEmploymentMonths ?? (rules.requireEmployment ? 12 : 0),
         requireCleanBackground: rules.requireBackground,
+        primeMaxRentToIncomeRatioBps: rules.primeMaxRentToIncomeRatioBps ?? rules.primeMinIncomeRatioBps ?? 2500,
         primeMinIncomeRatioBps: rules.primeMinIncomeRatioBps ?? 2500,
         primeMinCreditScore: rules.primeMinCreditScore ?? 750,
         criteriaHash: rules.criteriaHash,

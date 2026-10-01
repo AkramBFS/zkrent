@@ -21,6 +21,8 @@ export interface PropertyListingCriteria {
   minCreditScore: number | bigint;
   requireCleanBackground: boolean;
   minEmploymentMonths: number | bigint;
+  primeMaxRentToIncomeRatioBps?: number | bigint;
+  /** @deprecated use primeMaxRentToIncomeRatioBps */
   primeMinIncomeRatioBps?: number | bigint;
   primeMinCreditScore?: number | bigint;
   criteriaHash?: string;
@@ -40,10 +42,12 @@ export interface MidnightProverConfig {
 }
 
 export interface ZkMetrics {
-  constraints: number;
-  provingTimeMs: number;
+  constraints?: number;
+  zkirInstructions?: number;
+  provingTimeMs?: number;
   circuitSize: string;
   protocolVersion: string;
+  isSimulated?: boolean;
 }
 
 export interface RequirementVerificationOutcome {

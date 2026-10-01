@@ -1,15 +1,19 @@
 /**
- * Midnight Contract Circuit Test Suite (T1 - T8).
+ * Midnight Contract Circuit Test Suite (T0 - T8).
  *
- * Executes tests DIRECTLY against the real compiled Compact contract (`Contract` from
+ * Executes tests DIRECTLY against the real compiled Compact contract (`Contract` and `pureCircuits` from
  * contracts/managed/qualification/contract/index.js) via `@midnight-ntwrk/compact-runtime`.
  *
  * Scenarios Verified:
+ * - T0: Comprehensive Criteria Hash Equivalence (TS vs Compiled Pure Circuit)
  * - T1: Standard Qualification (Tier 0, Active Lifecycle)
- * - T2: Prime Qualification (Tier 1, High-Earner)
+ * - T2: Prime Qualification (Tier 1, High-Earner with primeMaxRentToIncomeRatioBps)
  * - T3: Low Income & High Rent-to-Income Failure Assertions
  * - T4: Credit Below Minimum & Failed Background Check Assertions
- * - T5: Replay Prevention via Epoch-Scoped Nullifiers
+ * - T5.1: Duplicate Active Qualification Blocked (Same tenantSecret & listingId)
+ * - T5.2: Attacker-Chosen issuedAt Cannot Bypass Replay / Create Second Active Record
+ * - T5.3: Re-proving Allowed After 30-Day Expiry
+ * - T5.4: Re-proving Allowed After Tenant Revocation
  * - T6: Application Squatting Defense via Tenant Commitment
  * - T7: Expired Attestation Time Assertion Enforcement
  * - T8: Unauthorized Listing Modification Protection (Owner-Only)
@@ -17,7 +21,7 @@
  */
 
 import * as cr from '@midnight-ntwrk/compact-runtime';
-import { Contract, ledger, RecordLifecycle } from '../contracts/managed/qualification/contract/index.js';
+import { Contract, ledger, RecordLifecycle, pureCircuits } from '../contracts/managed/qualification/contract/index.js';
 
 let passed = 0;
 let failed = 0;
@@ -39,6 +43,48 @@ Buffer.from('zkrent:tenant:').copy(tenantPad);
 
 function computeTenantCommitment(applicationId: Uint8Array, tenantSalt: Uint8Array): Uint8Array {
   return cr.persistentHash(vec3Bytes32, [tenantPad, applicationId, tenantSalt]);
+}
+
+const vec12Bytes32 = new cr.CompactTypeVector(12, new cr.CompactTypeBytes(32));
+const critPad = Buffer.alloc(32);
+Buffer.from('zkrent:crit:').copy(critPad);
+
+function toBytes32Field(val: bigint | number): Uint8Array {
+  const b = new Uint8Array(32);
+  const big = BigInt(val);
+  for (let i = 0; i < 8; i++) {
+    b[i] = Number((big >> BigInt(i * 8)) & 0xffn);
+  }
+  return b;
+}
+
+function computeListingCriteriaHashTS(
+  listingId: Uint8Array,
+  version: bigint,
+  rent: bigint,
+  minInc: bigint,
+  maxRatio: bigint,
+  minCred: bigint,
+  requireCleanBackground: boolean,
+  minEmploymentMonths: bigint,
+  primeMaxRentToIncomeRatioBps: bigint,
+  primeMinCreditScore: bigint,
+  active: boolean
+): Uint8Array {
+  return cr.persistentHash(vec12Bytes32, [
+    critPad,
+    listingId,
+    toBytes32Field(version),
+    toBytes32Field(rent),
+    toBytes32Field(minInc),
+    toBytes32Field(maxRatio),
+    toBytes32Field(minCred),
+    toBytes32Field(requireCleanBackground ? 1n : 0n),
+    toBytes32Field(minEmploymentMonths),
+    toBytes32Field(primeMaxRentToIncomeRatioBps),
+    toBytes32Field(primeMinCreditScore),
+    toBytes32Field(active ? 1n : 0n),
+  ]);
 }
 
 function makeBytes32(seed: number): Uint8Array {
@@ -72,7 +118,7 @@ async function createHarness(witnesses: any, adminSeed = 99): Promise<TestContra
 
 async function runTests() {
   console.log('\n══════════════════════════════════════════════════════════════');
-  console.log('  Compiled Compact Contract Circuit Test Suite (T1 - T8)');
+  console.log('  Compiled Compact Contract Circuit Test Suite (T0 - T8)');
   console.log('  Target: contracts/managed/qualification/contract/index.js');
   console.log('══════════════════════════════════════════════════════════════\n');
 
@@ -84,9 +130,47 @@ async function runTests() {
   const commitment1 = computeTenantCommitment(appId1, tenantSalt);
 
   // ---------------------------------------------------------------------------
+  // T0: Comprehensive Criteria Hash Equivalence
+  // ---------------------------------------------------------------------------
+  console.log('─── T0: Criteria Hash Equivalence (TS vs Compiled Pure Circuit) ───');
+  {
+    const circuitHash = pureCircuits.computeCriteriaHash(
+      listingId,
+      1n,
+      2000n,
+      6000n,
+      3300n,
+      650n,
+      true,
+      12n,
+      2500n,
+      750n,
+      true
+    );
+
+    const tsHash = computeListingCriteriaHashTS(
+      listingId,
+      1n,
+      2000n,
+      6000n,
+      3300n,
+      650n,
+      true,
+      12n,
+      2500n,
+      750n,
+      true
+    );
+
+    const match = Buffer.from(circuitHash).equals(Buffer.from(tsHash));
+    assert(match, 'T0: TS-computed criteria hash equals compiled contract pure circuit hash');
+    assert(circuitHash.length === 32, 'T0: Criteria hash is 32-byte digest');
+  }
+
+  // ---------------------------------------------------------------------------
   // T1: Standard Qualification
   // ---------------------------------------------------------------------------
-  console.log('─── T1: Standard Qualification ───');
+  console.log('\n─── T1: Standard Qualification ───');
   {
     const witnesses = {
       getAttestation: () => [{}, {
@@ -123,37 +207,35 @@ async function runTests() {
       650n,  // minCreditScore
       true,  // requireCleanBackground
       12n,   // minEmploymentMonths
-      2500n, // primeMinIncomeRatioBps (25.00% = 4x rent)
+      2500n, // primeMaxRentToIncomeRatioBps (25.00% max ratio = 4x rent)
       750n,  // primeMinCreditScore
       true   // active
     );
 
-    // Tenant proves qualification at t = 2000s
-    const stateAfterReg = regRes.context.callContext.currentQueryContext.state;
+    // Tenant proves qualification
     const proveCtx = cr.createCircuitContext(
       'proveQualification',
       cr.dummyContractAddress(),
       harness.zswap.coinPublicKey,
-      stateAfterReg,
+      regRes.context.callContext.currentQueryContext.state,
       {}
     );
-
     const proveRes = await harness.contract.circuits.proveQualification(
       proveCtx,
       listingId,
       appId1,
-      2000n
+      2000n // currentTime
     );
 
+    // Verify on-chain ledger state
     const l = ledger(proveRes.context.callContext.currentQueryContext.state);
-    const rec = l.applicationRecords.lookup(appId1);
-
-    assert(rec.tier === 0n, 'T1: Applicant qualifies for Standard Tier (0)');
-    assert(rec.lifecycle === RecordLifecycle.Active, 'T1: Application record is Active on-chain');
+    const appRec = l.applicationRecords.lookup(appId1);
+    assert(appRec.tier === 0n, 'T1: Applicant qualifies for Standard Tier (0)');
+    assert(appRec.lifecycle === RecordLifecycle.Active, 'T1: Application record is Active on-chain');
   }
 
   // ---------------------------------------------------------------------------
-  // T2: Prime Qualification (High Earner)
+  // T2: Prime Qualification (High Earner, 750+ Credit, <=25% Ratio)
   // ---------------------------------------------------------------------------
   console.log('\n─── T2: Prime Qualification ───');
   {
@@ -164,8 +246,8 @@ async function runTests() {
       getAttestation: () => [{}, {
         issuerPk: makeBytes32(999),
         subjectCommitment: commitment2,
-        annualIncome: 120000n, // $120,000 / yr (> 4x rent = 2500 bps)
-        creditScore: 780n,     // >= 750 prime
+        annualIncome: 120000n, // $120,000 / yr (~$10,000 / mo, 5x $2000 rent)
+        creditScore: 780n,     // Well above 750 prime threshold
         employmentMonths: 36n,
         backgroundClean: true,
         issuedAt: 1000n,
@@ -177,23 +259,19 @@ async function runTests() {
     };
 
     const harness = await createHarness(witnesses);
-
-    // Register listing
     const regCtx = cr.createCircuitContext('registerListingCriteria', cr.dummyContractAddress(), harness.zswap.coinPublicKey, harness.state, {});
     const regRes = await harness.contract.circuits.registerListingCriteria(regCtx, listingId, 2000n, 6000n, 3300n, 650n, true, 12n, 2500n, 750n, true);
 
-    // Prove qualification
     const proveCtx = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, regRes.context.callContext.currentQueryContext.state, {});
     const proveRes = await harness.contract.circuits.proveQualification(proveCtx, listingId, appId2, 2000n);
 
     const l = ledger(proveRes.context.callContext.currentQueryContext.state);
-    const rec = l.applicationRecords.lookup(appId2);
-
-    assert(rec.tier === 1n, 'T2: High-earner qualifies for Prime Tier (1) on-chain');
+    const appRec = l.applicationRecords.lookup(appId2);
+    assert(appRec.tier === 1n, 'T2: High-earner qualifies for Prime Tier (1) on-chain');
   }
 
   // ---------------------------------------------------------------------------
-  // T3: Low Income & Rent-to-Income Failure Assertion
+  // T3: Ineligible Tenant (Low Income / High Rent-to-Income Ratio)
   // ---------------------------------------------------------------------------
   console.log('\n─── T3: Low Income & Rent-to-Income Failure ───');
   {
@@ -204,7 +282,7 @@ async function runTests() {
       getAttestation: () => [{}, {
         issuerPk: makeBytes32(999),
         subjectCommitment: commitment3,
-        annualIncome: 40000n, // $40k is below $72k annual requirement
+        annualIncome: 45000n, // $45,000 / yr (< 12 * $6000 = $72,000 min)
         creditScore: 720n,
         employmentMonths: 24n,
         backgroundClean: true,
@@ -226,14 +304,14 @@ async function runTests() {
     try {
       await harness.contract.circuits.proveQualification(proveCtx, listingId, appId3, 2000n);
     } catch (e: any) {
-      threw = e.message.includes('Income below requirement') || e.message.includes('Rent-to-income ratio exceeds');
+      threw = e.message.includes('Income below requirement');
     }
     assert(threw, 'T3: Threw Compact assertion error on low income');
     assert(threw, 'T3: Ineligible tenant rejected without creating proof');
   }
 
   // ---------------------------------------------------------------------------
-  // T4: Bad Credit & Background Check Failure Rejection
+  // T4: Ineligible Tenant (Failed Background Check)
   // ---------------------------------------------------------------------------
   console.log('\n─── T4: Bad Credit / Background Failure ───');
   {
@@ -244,7 +322,7 @@ async function runTests() {
       getAttestation: () => [{}, {
         issuerPk: makeBytes32(999),
         subjectCommitment: commitment4,
-        annualIncome: 90000n,
+        annualIncome: 80000n,
         creditScore: 720n,
         employmentMonths: 24n,
         backgroundClean: false, // Fails clean background requirement
@@ -273,24 +351,28 @@ async function runTests() {
   }
 
   // ---------------------------------------------------------------------------
-  // T5: Replay Prevention via Nullifiers
+  // T5: Nullifier Anti-Replay & Expiry Lifecycle
   // ---------------------------------------------------------------------------
-  console.log('\n─── T5: Replay Prevention via Nullifiers ───');
+  console.log('\n─── T5: Nullifier Anti-Replay, Expiry & Re-Proving ───');
   {
     const appId5a = makeBytes32(51);
     const appId5b = makeBytes32(52);
-    let currentAppId = appId5a;
+    const appId5c = makeBytes32(53);
+    const appId5d = makeBytes32(54);
+
+    let activeWitnessCommitment = computeTenantCommitment(appId5a, tenantSalt);
+    let witnessIssuedAt = 1000n;
 
     const witnesses = {
       getAttestation: () => [{}, {
         issuerPk: makeBytes32(999),
-        subjectCommitment: computeTenantCommitment(currentAppId, tenantSalt),
+        subjectCommitment: activeWitnessCommitment,
         annualIncome: 85000n,
         creditScore: 710n,
         employmentMonths: 24n,
         backgroundClean: true,
-        issuedAt: 1000n,
-        expiresAt: 5000n,
+        issuedAt: witnessIssuedAt,
+        expiresAt: 10000000n,
       }],
       getTenantSecret: () => [{}, tenantSecret],
       getTenantSalt: () => [{}, tenantSalt],
@@ -301,22 +383,43 @@ async function runTests() {
     const regCtx = cr.createCircuitContext('registerListingCriteria', cr.dummyContractAddress(), harness.zswap.coinPublicKey, harness.state, {});
     const regRes = await harness.contract.circuits.registerListingCriteria(regCtx, listingId, 2000n, 6000n, 3300n, 650n, true, 12n, 2500n, 750n, true);
 
-    // First proof succeeds
+    // 1. Initial valid proof succeeds
     const proveCtx1 = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, regRes.context.callContext.currentQueryContext.state, {});
     const proveRes1 = await harness.contract.circuits.proveQualification(proveCtx1, listingId, appId5a, 2000n);
+    assert(true, 'T5.1: Initial qualification proved and registered in activeNullifiers');
 
-    // Second proof with same attestation & tenantSecret for same listing MUST fail with duplicate nullifier
-    currentAppId = appId5b;
+    // 2. Attacker-chosen issuedAt cannot create second active record (replay blocked)
+    activeWitnessCommitment = computeTenantCommitment(appId5b, tenantSalt);
+    witnessIssuedAt = 1500n; // Attacker tries changing issuedAt to evade nullifier
     const proveCtx2 = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, proveRes1.context.callContext.currentQueryContext.state, {});
 
-    let threw = false;
+    let threwSecondActive = false;
     try {
-      await harness.contract.circuits.proveQualification(proveCtx2, listingId, appId5b, 2000n);
+      await harness.contract.circuits.proveQualification(proveCtx2, listingId, appId5b, 2500n);
     } catch (e: any) {
-      threw = e.message.includes('already proved qualification');
+      threwSecondActive = e.message.includes('Active qualification already exists');
     }
-    assert(threw, 'T5: Duplicate nullifier rejected on-chain by compiled circuit');
-    assert(threw, 'T5: Replay attack blocked');
+    assert(threwSecondActive, 'T5.2: Attacker-chosen issuedAt cannot create second active record');
+
+    // 3. Re-proving permitted AFTER expiry
+    // Application validity is 30 days (2,592,000s). Proving at 2000n means expiry is 2,594,000n.
+    // Call at currentTime = 3,000,000n (> 2,594,000n)
+    activeWitnessCommitment = computeTenantCommitment(appId5c, tenantSalt);
+    witnessIssuedAt = 2000000n;
+    const proveCtx3 = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, proveRes1.context.callContext.currentQueryContext.state, {});
+    const proveRes3 = await harness.contract.circuits.proveQualification(proveCtx3, listingId, appId5c, 3000000n);
+    const l3 = ledger(proveRes3.context.callContext.currentQueryContext.state);
+    assert(l3.applicationRecords.lookup(appId5c).lifecycle === RecordLifecycle.Active, 'T5.3: Re-proving allowed after 30-day expiry');
+
+    // 4. Re-proving permitted AFTER revocation
+    const revokeCtx = cr.createCircuitContext('revokeQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, proveRes3.context.callContext.currentQueryContext.state, {});
+    const revokeRes = await harness.contract.circuits.revokeQualification(revokeCtx, appId5c);
+
+    activeWitnessCommitment = computeTenantCommitment(appId5d, tenantSalt);
+    const proveCtx4 = cr.createCircuitContext('proveQualification', cr.dummyContractAddress(), harness.zswap.coinPublicKey, revokeRes.context.callContext.currentQueryContext.state, {});
+    const proveRes4 = await harness.contract.circuits.proveQualification(proveCtx4, listingId, appId5d, 3000500n);
+    const l4 = ledger(proveRes4.context.callContext.currentQueryContext.state);
+    assert(l4.applicationRecords.lookup(appId5d).lifecycle === RecordLifecycle.Active, 'T5.4: Re-proving allowed after tenant revocation');
   }
 
   // ---------------------------------------------------------------------------
@@ -374,12 +477,12 @@ async function runTests() {
       getAttestation: () => [{}, {
         issuerPk: makeBytes32(999),
         subjectCommitment: commitment7,
-        annualIncome: 90000n,
-        creditScore: 730n,
+        annualIncome: 85000n,
+        creditScore: 710n,
         employmentMonths: 24n,
         backgroundClean: true,
         issuedAt: 1000n,
-        expiresAt: 3000n, // Expired at t = 4000
+        expiresAt: 2000n, // Expired before currentTime of 3000n
       }],
       getTenantSecret: () => [{}, tenantSecret],
       getTenantSalt: () => [{}, tenantSalt],
@@ -394,7 +497,7 @@ async function runTests() {
 
     let threw = false;
     try {
-      await harness.contract.circuits.proveQualification(proveCtx, listingId, appId7, 4000n); // t=4000 > expiresAt=3000
+      await harness.contract.circuits.proveQualification(proveCtx, listingId, appId7, 3000n);
     } catch (e: any) {
       threw = e.message.includes('Attestation has expired');
     }

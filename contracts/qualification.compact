@@ -16,7 +16,7 @@ export struct ListingCriteria {
   minCreditScore: Uint<16>,
   requireCleanBackground: Boolean,
   minEmploymentMonths: Uint<16>,
-  primeMinIncomeRatioBps: Uint<16>,
+  primeMaxRentToIncomeRatioBps: Uint<16>,
   primeMinCreditScore: Uint<16>,
   active: Boolean
 }
@@ -33,6 +33,12 @@ export struct ApplicationStatusRecord {
   expiresAt: Uint<64>
 }
 
+// NOTE ON ATTESTATION ISSUER:
+// The issuerPk field in Attestation currently serves as an authenticated issuer identity label.
+// In the current protocol phase, off-chain credential verification confirms attestation authenticity,
+// while in-circuit digital signature verification (e.g. BLS12-381 / Ed25519) by the
+// smart contract is deferred to a future circuit optimization. Prover and server endpoints
+// must honestly document this trust assumption.
 export struct Attestation {
   issuerPk: Bytes<32>,
   subjectCommitment: Bytes<32>,
@@ -50,7 +56,7 @@ export struct Attestation {
 
 export ledger listings: Map<Bytes<32>, ListingCriteria>;
 export ledger applicationRecords: Map<Bytes<32>, ApplicationStatusRecord>;
-export ledger nullifierSet: Set<Bytes<32>>;
+export ledger activeNullifiers: Map<Bytes<32>, Bytes<32>>; // maps nullifier -> applicationId
 export sealed ledger contractAdmin: Bytes<32>;
 export ledger isPaused: Boolean;
 
@@ -73,7 +79,7 @@ constructor(admin: Bytes<32>) {
 }
 
 // -----------------------------------------------------------------------------
-// Helper Circuits
+// Helper & Pure Circuits
 // -----------------------------------------------------------------------------
 
 circuit getPublicKey(sk: Bytes<32>): Bytes<32> {
@@ -83,21 +89,33 @@ circuit getPublicKey(sk: Bytes<32>): Bytes<32> {
   ]);
 }
 
-circuit computeCriteriaHash(
+// Comprehensive criteria hash covering ALL listing criteria fields
+export pure circuit computeCriteriaHash(
   listingId: Bytes<32>,
   version: Uint<32>,
   rent: Uint<64>,
   minInc: Uint<64>,
   maxRatio: Uint<16>,
-  minCred: Uint<16>
+  minCred: Uint<16>,
+  requireCleanBackground: Boolean,
+  minEmploymentMonths: Uint<16>,
+  primeMaxRentToIncomeRatioBps: Uint<16>,
+  primeMinCreditScore: Uint<16>,
+  active: Boolean
 ): Bytes<32> {
-  return persistentHash<Vector<6, Bytes<32>>>([
+  return persistentHash<Vector<12, Bytes<32>>>([
+    pad(32, "zkrent:crit:"),
     listingId,
     (version as Field) as Bytes<32>,
     (rent as Field) as Bytes<32>,
     (minInc as Field) as Bytes<32>,
     (maxRatio as Field) as Bytes<32>,
-    (minCred as Field) as Bytes<32>
+    (minCred as Field) as Bytes<32>,
+    ((requireCleanBackground ? 1 : 0) as Field) as Bytes<32>,
+    (minEmploymentMonths as Field) as Bytes<32>,
+    (primeMaxRentToIncomeRatioBps as Field) as Bytes<32>,
+    (primeMinCreditScore as Field) as Bytes<32>,
+    ((active ? 1 : 0) as Field) as Bytes<32>
   ]);
 }
 
@@ -128,7 +146,7 @@ export circuit registerListingCriteria(
   minCreditScore: Uint<16>,
   requireCleanBackground: Boolean,
   minEmploymentMonths: Uint<16>,
-  primeMinIncomeRatioBps: Uint<16>,
+  primeMaxRentToIncomeRatioBps: Uint<16>,
   primeMinCreditScore: Uint<16>,
   active: Boolean
 ): [] {
@@ -149,7 +167,12 @@ export circuit registerListingCriteria(
     monthlyRent,
     minMonthlyIncome,
     maxRentToIncomeRatioBps,
-    minCreditScore
+    minCreditScore,
+    requireCleanBackground,
+    minEmploymentMonths,
+    primeMaxRentToIncomeRatioBps,
+    primeMinCreditScore,
+    active
   );
 
   const newCriteria = ListingCriteria {
@@ -162,7 +185,7 @@ export circuit registerListingCriteria(
     minCreditScore: disclose(minCreditScore),
     requireCleanBackground: disclose(requireCleanBackground),
     minEmploymentMonths: disclose(minEmploymentMonths),
-    primeMinIncomeRatioBps: disclose(primeMinIncomeRatioBps),
+    primeMaxRentToIncomeRatioBps: disclose(primeMaxRentToIncomeRatioBps),
     primeMinCreditScore: disclose(primeMinCreditScore),
     active: disclose(active)
   };
@@ -193,7 +216,7 @@ export circuit proveQualification(
   assert(currentTime >= attestation.issuedAt, "Attestation not yet valid");
   assert(currentTime <= attestation.expiresAt, "Attestation has expired");
 
-  // 2. Tenant commitment check
+  // 2. Tenant commitment check (Anti-Squatting binding)
   const expectedCommitment = persistentHash<Vector<3, Bytes<32>>>([
     pad(32, "zkrent:tenant:"),
     applicationId,
@@ -222,22 +245,35 @@ export circuit proveQualification(
   }
 
   // 4. Derive Coarse Qualification Tier
-  // Prime: rent * 120000 <= annualIncome * primeMinIncomeRatioBps AND creditScore >= primeMinCreditScore
-  const primeRatioRhs = (attestation.annualIncome * (listing.primeMinIncomeRatioBps as Uint<64>)) as Uint<64>;
+  // Prime: rent * 120000 <= annualIncome * primeMaxRentToIncomeRatioBps AND creditScore >= primeMinCreditScore
+  const primeRatioRhs = (attestation.annualIncome * (listing.primeMaxRentToIncomeRatioBps as Uint<64>)) as Uint<64>;
   const meetsPrimeRatio = rentRatioLhs <= primeRatioRhs;
   const meetsPrimeCredit = attestation.creditScore >= listing.primeMinCreditScore;
   const isPrime = meetsPrimeRatio && meetsPrimeCredit;
   const tierValue: Uint<8> = isPrime ? 1 : 0;
 
-  // 5. Anti-Replay Nullifier Verification (scoped to attestation issuance epoch)
-  const nullifier = persistentHash<Vector<4, Bytes<32>>>([
+  // 5. Anti-Replay Nullifier Verification
+  // The nullifier depends strictly on (tenantSecret, listingId).
+  // Attestation issuedAt is deliberately NOT included in the nullifier preimage,
+  // preventing a tenant from forging arbitrary multiple nullifiers for the same listing.
+  const nullifier = persistentHash<Vector<3, Bytes<32>>>([
     pad(32, "zkrent:null:"),
     tenantSecret,
-    listingId,
-    (attestation.issuedAt as Field) as Bytes<32>
+    listingId
   ]);
-  assert(!nullifierSet.member(disclose(nullifier)), "Applicant already proved qualification with this attestation for this listing");
-  nullifierSet.insert(disclose(nullifier));
+
+  const hasExisting = activeNullifiers.member(disclose(nullifier));
+  if (hasExisting) {
+    const prevAppId = activeNullifiers.lookup(disclose(nullifier));
+    const prevRecord = applicationRecords.lookup(prevAppId);
+    // Re-proving is permitted ONLY if the previous qualification is no longer active:
+    // either it was consumed (lease signed), revoked (withdrawn), or expired.
+    const isInactive = prevRecord.lifecycle != RecordLifecycle.Active;
+    const isExpired = currentTime >= prevRecord.expiresAt;
+    assert(isInactive || isExpired, "Active qualification already exists for this tenant and listing");
+  }
+
+  activeNullifiers.insert(disclose(nullifier), disclose(applicationId));
 
   // 6. Record Application Status On-Chain (30-day validity)
   const validityPeriod: Uint<64> = 2592000; // 30 days in seconds

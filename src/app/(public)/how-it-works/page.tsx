@@ -115,8 +115,8 @@ export default function HowItWorksPage() {
                       <span className="text-[#00A8E8]">Redacted in Browser</span>
                     </div>
                     <div className="p-3 rounded-lg bg-[#231F20] border border-[#00A8E8]/30 flex items-center justify-between">
-                      <span>Zero-Knowledge Proof Circuit</span>
-                      <span className="text-[#B86A36]">38,420 Constraints</span>
+                      <span>Compact ZKIR Circuit</span>
+                      <span className="text-[#B86A36]">272 Instructions</span>
                     </div>
                     <div className="p-3 rounded-lg bg-[#231F20] border border-[#00A8E8]/30 flex items-center justify-between">
                       <span>Midnight Network Consensus</span>

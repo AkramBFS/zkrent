@@ -8,7 +8,8 @@ export interface PropertyRequirements {
   maxRentToIncomeRatioBps?: number; // e.g. 3300 (33%)
   minCreditScore?: number; // e.g. 650
   minEmploymentMonths?: number; // e.g. 12
-  primeMinIncomeRatioBps?: number; // e.g. 2500 (25%)
+  primeMaxRentToIncomeRatioBps?: number; // e.g. 2500 (25%)
+  primeMinIncomeRatioBps?: number; // @deprecated use primeMaxRentToIncomeRatioBps
   primeMinCreditScore?: number; // e.g. 750
 }
 
@@ -32,6 +33,8 @@ export interface Property {
   status: 'active' | 'draft' | 'archived';
   createdAt: string;
   requirements: PropertyRequirements;
+  criteriaHash?: string;
+  criteriaVersion?: number;
 }
 
 export interface RequirementVerificationResult {
@@ -57,6 +60,8 @@ export interface ZkProofDetails {
   criteriaHash?: string;
   expiresAt?: string;
   provingTimeMs?: number;
+  isSimulation?: boolean;
+  lifecycle?: string;
   requirements: {
     income: { required: number; satisfied: boolean; value?: number };
     rentToIncomeRatio?: { required: number; satisfied: boolean };
@@ -65,10 +70,13 @@ export interface ZkProofDetails {
     employment: { required: number | boolean; satisfied: boolean; value?: number };
   };
   zkMetrics: {
-    constraints: number;
-    provingTimeMs: number;
+    constraints?: number;
+    zkirInstructions?: number;
+    provingTimeMs?: number;
     circuitSize: string;
     protocolVersion: string;
+    isSimulated?: boolean;
+    executionMode?: string;
   };
 }
 

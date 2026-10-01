@@ -91,7 +91,7 @@ async function runTests() {
   assert(primeResult.circuitId === 'proveQualification', 'Targeted circuit is proveQualification');
   assert(primeResult.proofHash.startsWith('zk_p_'), `Proof hash generated: ${primeResult.proofHash}`);
   assert(primeResult.nullifier.startsWith('zk_null_'), `Nullifier generated: ${primeResult.nullifier}`);
-  assert(primeResult.criteriaHash.startsWith('ch_'), `Criteria hash bound: ${primeResult.criteriaHash}`);
+  assert(primeResult.criteriaHash.startsWith('0x') || primeResult.criteriaHash.startsWith('ch_'), `Criteria hash bound: ${primeResult.criteriaHash}`);
   assert(primeResult.midnightTxHash.startsWith('0x'), `Midnight tx hash generated: ${primeResult.midnightTxHash}`);
   assert(primeResult.blockHeight > 0, `Block height populated: #${primeResult.blockHeight}`);
   assert(primeResult.requirements.income.satisfied === true, 'Income requirement satisfied');
@@ -166,7 +166,7 @@ async function runTests() {
 
   assert(verificationResult.isEligible === true, 'defaultVerifier evaluates eligibility');
   assert(verificationResult.circuitId === 'proveQualification', 'defaultVerifier returns proveQualification circuit');
-  assert(verificationResult.zkMetrics.constraints === 38420, 'zkMetrics contains constraint count (38,420)');
+  assert(verificationResult.zkMetrics.constraints === 272, 'zkMetrics contains measured ZKIR instruction count (272)');
   assert(verificationResult.tier === 0, 'Standard tier (0) correctly assigned');
 
   // ── Summary ─────────────────────────────────────────────────────────────

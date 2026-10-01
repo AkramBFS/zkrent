@@ -70,8 +70,8 @@ export default function AboutPage() {
                 <div className="text-[#908682] text-[11px] mt-1">WebAssembly execution in browser</div>
               </div>
               <div className="p-3 rounded-lg bg-[#231F20] border border-white/10">
-                <div className="text-[#00A8E8] font-bold">Halo2 SNARKs</div>
-                <div className="text-[#908682] text-[11px] mt-1">38,420 arithmetic constraints</div>
+                <div className="text-[#00A8E8] font-bold">Compact ZKIR</div>
+                <div className="text-[#908682] text-[11px] mt-1">272 measured instructions</div>
               </div>
               <div className="p-3 rounded-lg bg-[#231F20] border border-white/10">
                 <div className="text-[#00A8E8] font-bold">Inspectable Receipts</div>

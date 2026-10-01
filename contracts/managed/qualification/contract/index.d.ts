@@ -9,7 +9,7 @@ export type ListingCriteria = { landlordPk: Uint8Array;
                                 minCreditScore: bigint;
                                 requireCleanBackground: boolean;
                                 minEmploymentMonths: bigint;
-                                primeMinIncomeRatioBps: bigint;
+                                primeMaxRentToIncomeRatioBps: bigint;
                                 primeMinCreditScore: bigint;
                                 active: boolean
                               };
@@ -52,7 +52,7 @@ export type ImpureCircuits<PS> = {
                           minCreditScore_0: bigint,
                           requireCleanBackground_0: boolean,
                           minEmploymentMonths_0: bigint,
-                          primeMinIncomeRatioBps_0: bigint,
+                          primeMaxRentToIncomeRatioBps_0: bigint,
                           primeMinCreditScore_0: bigint,
                           active_0: boolean): Promise<__compactRuntime.CircuitResults<PS, []>>;
   proveQualification(context: __compactRuntime.CircuitContext<PS>,
@@ -75,7 +75,7 @@ export type ProvableCircuits<PS> = {
                           minCreditScore_0: bigint,
                           requireCleanBackground_0: boolean,
                           minEmploymentMonths_0: bigint,
-                          primeMinIncomeRatioBps_0: bigint,
+                          primeMaxRentToIncomeRatioBps_0: bigint,
                           primeMinCreditScore_0: bigint,
                           active_0: boolean): Promise<__compactRuntime.CircuitResults<PS, []>>;
   proveQualification(context: __compactRuntime.CircuitContext<PS>,
@@ -89,9 +89,32 @@ export type ProvableCircuits<PS> = {
 }
 
 export type PureCircuits = {
+  computeCriteriaHash(listingId_0: Uint8Array,
+                      version_0: bigint,
+                      rent_0: bigint,
+                      minInc_0: bigint,
+                      maxRatio_0: bigint,
+                      minCred_0: bigint,
+                      requireCleanBackground_0: boolean,
+                      minEmploymentMonths_0: bigint,
+                      primeMaxRentToIncomeRatioBps_0: bigint,
+                      primeMinCreditScore_0: bigint,
+                      active_0: boolean): Uint8Array;
 }
 
 export type Circuits<PS> = {
+  computeCriteriaHash(context: __compactRuntime.CircuitContext<PS>,
+                      listingId_0: Uint8Array,
+                      version_0: bigint,
+                      rent_0: bigint,
+                      minInc_0: bigint,
+                      maxRatio_0: bigint,
+                      minCred_0: bigint,
+                      requireCleanBackground_0: boolean,
+                      minEmploymentMonths_0: bigint,
+                      primeMaxRentToIncomeRatioBps_0: bigint,
+                      primeMinCreditScore_0: bigint,
+                      active_0: boolean): Promise<__compactRuntime.CircuitResults<PS, Uint8Array>>;
   setPaused(context: __compactRuntime.CircuitContext<PS>, paused_0: boolean): Promise<__compactRuntime.CircuitResults<PS, []>>;
   registerListingCriteria(context: __compactRuntime.CircuitContext<PS>,
                           listingId_0: Uint8Array,
@@ -101,7 +124,7 @@ export type Circuits<PS> = {
                           minCreditScore_0: bigint,
                           requireCleanBackground_0: boolean,
                           minEmploymentMonths_0: bigint,
-                          primeMinIncomeRatioBps_0: bigint,
+                          primeMaxRentToIncomeRatioBps_0: bigint,
                           primeMinCreditScore_0: bigint,
                           active_0: boolean): Promise<__compactRuntime.CircuitResults<PS, []>>;
   proveQualification(context: __compactRuntime.CircuitContext<PS>,
@@ -129,11 +152,12 @@ export type Ledger = {
     lookup(key_0: Uint8Array): ApplicationStatusRecord;
     [Symbol.iterator](): Iterator<[Uint8Array, ApplicationStatusRecord]>
   };
-  nullifierSet: {
+  activeNullifiers: {
     isEmpty(): boolean;
     size(): bigint;
-    member(elem_0: Uint8Array): boolean;
-    [Symbol.iterator](): Iterator<Uint8Array>
+    member(key_0: Uint8Array): boolean;
+    lookup(key_0: Uint8Array): Uint8Array;
+    [Symbol.iterator](): Iterator<[Uint8Array, Uint8Array]>
   };
   readonly contractAdmin: Uint8Array;
   readonly isPaused: boolean;

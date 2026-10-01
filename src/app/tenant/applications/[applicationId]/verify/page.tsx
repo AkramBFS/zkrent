@@ -75,11 +75,11 @@ export default function ZkVerificationPage() {
       setProvingStage('Applying redaction bars to income and private identifiers...');
     }, 600);
 
-    // Stage 2: Halo2 Circuit evaluation
+    // Stage 2: Compact Circuit evaluation
     setTimeout(() => {
       setProgress(50);
       setRedactedCount(2);
-      setProvingStage('Compiling 38,420 Halo2 arithmetic constraints in WebAssembly...');
+      setProvingStage('Synthesizing 272 Compact ZKIR instructions in WebAssembly...');
     }, 1300);
 
     // Stage 3: SNARK Proof synthesis
@@ -570,9 +570,9 @@ export default function ZkVerificationPage() {
 
                 {/* Field 3: Circuit Constraints */}
                 <div className="p-3 rounded-lg bg-[#231F20] border border-white/10 flex items-center justify-between">
-                  <span className="text-[#908682]">Halo2 Arithmetic Gates:</span>
+                  <span className="text-[#908682]">Compact ZKIR Gates:</span>
                   <span className="text-[#B86A36] font-bold">
-                    {redactedCount >= 3 ? '38,420 Constraints Bound' : 'Synthesizing...'}
+                    {redactedCount >= 3 ? '272 Instructions Bound' : 'Synthesizing...'}
                   </span>
                 </div>
               </div>

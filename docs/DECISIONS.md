@@ -100,3 +100,42 @@ This document records architectural decisions made during the evolution of ZkRen
   2. Pin `@apollo/client: "3.13.8"` via package overrides to guarantee stable GraphQL client execution across Node and Webpack/Turbopack environments.
   3. Implement non-blocking TCP socket probing (`net.Socket`) with immediate socket destruction for network preflight checks to prevent Node process hangs on Windows.
 - **Consequences**: Clean, resilient deployment pipeline with zero dangling dependencies or event-loop stalls.
+
+---
+
+## ADR 009: Media Storage Abstraction & Multi-Format EXIF Sanitization
+
+- **Status**: Accepted
+- **Date**: 2026-10-01
+- **Context**: Rental property listings require property photos, but relying on third-party stock Unsplash URLs limits realistic local and production deployments. Furthermore, user-uploaded images routinely contain embedded EXIF metadata (GPS coordinates, camera serial numbers, creation timestamps), creating privacy leakage.
+- **Decision**:
+  1. Implement a unified storage abstraction supporting Local Disk storage and S3-compatible providers (AWS S3, MinIO, Cloudflare R2).
+  2. Use `sharp` to strip all EXIF, GPS, and color profile metadata across JPEG, PNG, and WebP images by re-encoding them into sanitized buffers before persistence.
+  3. Restrict upload capabilities strictly to authenticated landlords uploading property photos; tenants are rejected with 403 Forbidden to prevent financial documents from touching the server.
+- **Consequences**: Clean media uploads with zero privacy leaks and unified cloud/local compatibility.
+
+---
+
+## ADR 010: Canonical State Machine & Lease Consumption Lifecycle
+
+- **Status**: Accepted
+- **Date**: 2026-10-01
+- **Context**: Application statuses previously had divergent names across API routes and client UI (`PENDING_PAYMENT`, `PAYMENT_CONFIRMED`, `ZK_VERIFIED`, `APPROVED`, `GRANTED`, `WITHDRAWN`), risking illegal state transitions (e.g. submitting proof before payment, or finalizing lease without verification).
+- **Decision**:
+  1. Establish a single canonical lifecycle module (`src/lib/lifecycle.ts`) defining explicit states: `DRAFT`, `PENDING_PAYMENT`, `PAYMENT_CONFIRMED`, `ZK_VERIFIED`, `UNDER_REVIEW`, `ACCEPTED`, `REJECTED`, `WITHDRAWN`.
+  2. Separate Application status from Reveal Consent state (`NOT_REQUESTED`, `REQUESTED`, `GRANTED`, `DECLINED`) and On-Chain Qualification state (`ACTIVE`, `CONSUMED`, `REVOKED`, `EXPIRED`).
+  3. Enforce that lease signing triggers the on-chain `consumeQualification` circuit, preventing reusable qualifications across leases.
+- **Consequences**: Enforced lifecycle integrity with all illegal state jumps rejected deterministically at both API and circuit boundaries.
+
+---
+
+## ADR 011: Stripe Webhook Idempotency & Refund Revocation Semantics
+
+- **Status**: Accepted
+- **Date**: 2026-10-01
+- **Context**: Network retries from Stripe webhooks can send duplicate events, risking duplicate payments or invalid database states. In addition, when an application fee is refunded after verification, clear semantics are needed to prevent tenants from proceeding to lease execution for free.
+- **Decision**:
+  1. Deduplicate incoming Stripe events using `stripeEventId` unique indexing on the `Payment` model.
+  2. When a `charge.refunded` or payment refund occurs, immediately transition the Application to `WITHDRAWN` and revoke any active qualification record (`REVOKED`), preventing subsequent lease signing.
+- **Consequences**: Robust webhook idempotency and air-tight refund economics.
+

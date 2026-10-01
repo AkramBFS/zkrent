@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createPropertySchema } from '@/lib/validations/property';
+import { randomUUID } from 'node:crypto';
+import { computeListingCriteriaHash } from '@/midnight/zk';
 
 export async function GET(req: NextRequest) {
   try {
@@ -107,9 +109,12 @@ export async function GET(req: NextRequest) {
         maxRentToIncomeRatioBps: p.maxRentToIncomeRatioBps,
         minCreditScore: p.minCreditScore,
         minEmploymentMonths: p.minEmploymentMonths,
+        primeMaxRentToIncomeRatioBps: p.primeMaxRentToIncomeRatioBps,
         primeMinIncomeRatioBps: p.primeMinIncomeRatioBps,
         primeMinCreditScore: p.primeMinCreditScore,
       },
+      criteriaHash: p.criteriaHash,
+      criteriaVersion: p.criteriaVersion,
       applicationCount: p._count.applications,
     }));
 
@@ -143,9 +148,31 @@ export async function POST(req: NextRequest) {
     }
 
     const data = parsed.data;
+    const propertyId = randomUUID();
+    const criteriaVersion = 1;
+    const maxRentToIncomeRatioBps = data.maxRentToIncomeRatioBps ?? 3300;
+    const minCreditScore = data.minCreditScore ?? 650;
+    const minEmploymentMonths = data.minEmploymentMonths ?? 12;
+    const primeMaxRentToIncomeRatioBps = data.primeMaxRentToIncomeRatioBps ?? data.primeMinIncomeRatioBps ?? 2500;
+    const primeMinCreditScore = data.primeMinCreditScore ?? 750;
+    const status = data.status || 'active';
+
+    const criteriaHash = computeListingCriteriaHash(propertyId, {
+      monthlyRent: data.price,
+      minMonthlyIncome: Math.round(data.minIncome / 12),
+      maxRentToIncomeRatioBps,
+      minCreditScore,
+      minEmploymentMonths,
+      requireCleanBackground: data.requireBackground,
+      primeMaxRentToIncomeRatioBps,
+      primeMinCreditScore,
+      criteriaVersion,
+      active: status === 'active',
+    });
 
     const property = await prisma.property.create({
       data: {
+        id: propertyId,
         title: data.title,
         address: data.address,
         city: data.city,
@@ -159,11 +186,18 @@ export async function POST(req: NextRequest) {
         description: data.description,
         images: data.images.length > 0 ? data.images : ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1200&q=80'],
         amenities: data.amenities,
-        status: data.status || 'active',
+        status,
         minIncome: data.minIncome,
         requireBackground: data.requireBackground,
         requireEmployment: data.requireEmployment,
         verificationFee: data.verificationFee,
+        maxRentToIncomeRatioBps,
+        minCreditScore,
+        minEmploymentMonths,
+        primeMaxRentToIncomeRatioBps,
+        primeMinCreditScore,
+        criteriaHash,
+        criteriaVersion,
         landlordId: session.user.id,
       },
       include: {
@@ -201,7 +235,14 @@ export async function POST(req: NextRequest) {
         requireBackground: property.requireBackground,
         requireEmployment: property.requireEmployment,
         verificationFee: property.verificationFee,
+        maxRentToIncomeRatioBps: property.maxRentToIncomeRatioBps,
+        minCreditScore: property.minCreditScore,
+        minEmploymentMonths: property.minEmploymentMonths,
+        primeMaxRentToIncomeRatioBps: property.primeMaxRentToIncomeRatioBps,
+        primeMinCreditScore: property.primeMinCreditScore,
       },
+      criteriaHash: property.criteriaHash,
+      criteriaVersion: property.criteriaVersion,
     };
 
     return NextResponse.json({ status: 'created', property: formatted }, { status: 201 });

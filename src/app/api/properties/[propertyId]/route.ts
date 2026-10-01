@@ -59,9 +59,12 @@ export async function GET(
         maxRentToIncomeRatioBps: property.maxRentToIncomeRatioBps,
         minCreditScore: property.minCreditScore,
         minEmploymentMonths: property.minEmploymentMonths,
+        primeMaxRentToIncomeRatioBps: property.primeMaxRentToIncomeRatioBps,
         primeMinIncomeRatioBps: property.primeMinIncomeRatioBps,
         primeMinCreditScore: property.primeMinCreditScore,
       },
+      criteriaHash: property.criteriaHash,
+      criteriaVersion: property.criteriaVersion,
       applicationCount: property._count.applications,
     };
 
@@ -112,9 +115,28 @@ export async function PATCH(
       return NextResponse.json({ error: 'Validation failed', details: parsed.error.format() }, { status: 400 });
     }
 
+    const { computeListingCriteriaHash } = await import('@/midnight/zk');
+    const newVersion = (existingProperty.criteriaVersion || 1) + 1;
+    const newCriteriaHash = computeListingCriteriaHash(propertyId, {
+      monthlyRent: parsed.data.price ?? existingProperty.price,
+      minMonthlyIncome: Math.round((parsed.data.minIncome ?? existingProperty.minIncome) / 12),
+      maxRentToIncomeRatioBps: parsed.data.maxRentToIncomeRatioBps ?? existingProperty.maxRentToIncomeRatioBps,
+      minCreditScore: parsed.data.minCreditScore ?? existingProperty.minCreditScore,
+      minEmploymentMonths: parsed.data.minEmploymentMonths ?? existingProperty.minEmploymentMonths,
+      requireCleanBackground: parsed.data.requireBackground ?? existingProperty.requireBackground,
+      primeMaxRentToIncomeRatioBps: parsed.data.primeMaxRentToIncomeRatioBps ?? existingProperty.primeMaxRentToIncomeRatioBps,
+      primeMinCreditScore: parsed.data.primeMinCreditScore ?? existingProperty.primeMinCreditScore,
+      criteriaVersion: newVersion,
+      active: (parsed.data.status ?? existingProperty.status) === 'active',
+    });
+
     const updated = await prisma.property.update({
       where: { id: propertyId },
-      data: parsed.data,
+      data: {
+        ...parsed.data,
+        criteriaHash: newCriteriaHash,
+        criteriaVersion: newVersion,
+      },
       include: {
         landlord: {
           select: {
@@ -153,9 +175,12 @@ export async function PATCH(
         maxRentToIncomeRatioBps: updated.maxRentToIncomeRatioBps,
         minCreditScore: updated.minCreditScore,
         minEmploymentMonths: updated.minEmploymentMonths,
+        primeMaxRentToIncomeRatioBps: updated.primeMaxRentToIncomeRatioBps,
         primeMinIncomeRatioBps: updated.primeMinIncomeRatioBps,
         primeMinCreditScore: updated.primeMinCreditScore,
       },
+      criteriaHash: updated.criteriaHash,
+      criteriaVersion: updated.criteriaVersion,
     };
 
     return NextResponse.json({ status: 'ok', property: formatted });

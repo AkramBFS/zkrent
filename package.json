@@ -12,7 +12,7 @@
     "test": "node scripts/run-tests.js",
     "test:ocr": "node node_modules/tsx/dist/cli.mjs scripts/test-ocr-parser.ts",
     "test:prover": "node node_modules/tsx/dist/cli.mjs scripts/test-midnight-prover.ts",
-    "db:migrate": "node scripts/migrate.js",
+    "db:migrate": "prisma migrate deploy",
     "db:seed": "node scripts/seed.js",
     "db:generate": "prisma generate",
     "compact:compile": "wsl bash -c \"cd /mnt/c/Users/akram/Desktop/zkren/midnighthack/zkrent && compact compile contracts/qualification.compact contracts/managed/qualification\"",

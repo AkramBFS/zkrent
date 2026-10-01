@@ -218,13 +218,13 @@ async function seed() {
         "type", "description", "images", "amenities", "status", "minIncome",
         "requireBackground", "requireEmployment", "verificationFee",
         "maxRentToIncomeRatioBps", "minCreditScore", "minEmploymentMonths",
-        "primeMinIncomeRatioBps", "primeMinCreditScore", "landlordId"
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`,
+        "primeMaxRentToIncomeRatioBps", "primeMinIncomeRatioBps", "primeMinCreditScore", "landlordId"
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`,
       [
         p.title, p.address, p.city, p.state, p.zip, p.price, p.beds, p.baths, p.sqft,
         p.type, p.description, p.images, p.amenities, 'active', p.minIncome,
         p.requireBackground, p.requireEmployment, p.verificationFee,
-        3300, 650, 12, 2500, 750, landlordId
+        3300, 650, 12, 2500, 2500, 750, landlordId
       ]
     );
   }

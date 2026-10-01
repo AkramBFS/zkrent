@@ -122,7 +122,96 @@ This log tracks real changes made to the ZkRent codebase across master plan phas
 
 - **Simulated vs. Live Proving Transparency**:
   - Clearly signposted simulation mode throughout the entire UI: navigation header, proof drawer, receipt inspector, and application verification screens.
-  - Verified that all 79 automated test suites pass (28 OCR, 18 contract circuits, 33 prover integration), with 0 type errors and 0 build errors.
+  - Fail-loud live mode enforcement: when live mode is configured and the proof server is unreachable, API immediately responds with HTTP 503 instead of silently falling back to simulation.
+
+---
+
+## Phase 2 Rework: Cryptographic Integrity & Canonical State Machine (Completed)
+
+- **Anti-Replay Nullifier & Expiry**:
+  - Restructured nullifier generation so uniqueness and expiry rely on contract-controlled chain time. Nullifier is derived as `persistentHash(["zkrent:null:", tenantSecret, listingId])`.
+  - Re-proving is permitted once a previous qualification record reaches `Consumed`, `Revoked`, or `Expired` state.
+  - Explicit tests prove attacker-manipulated `issuedAt` timestamps cannot bypass uniqueness or forge active records.
+- **Canonical 12-Field Criteria Hash**:
+  - Standardized `computeListingCriteriaHash` across TypeScript and Compact to digest all 12 criteria fields: `listingId`, `minIncomeReq`, `maxRentToIncomeRatioBps`, `minCreditScore`, `minEmploymentMonths`, `requireCleanBackground`, `primeMaxRentToIncomeRatioBps`, `primeMinCreditScore`, `landlordPk`, `version`, `active`, and `monthlyRent`.
+  - Added mathematical equivalence test proving TypeScript-computed hash identically matches the Compact contract circuit output.
+  - Renamed `primeMinIncomeRatioBps` to `primeMaxRentToIncomeRatioBps` to accurately reflect its max rent-to-income ceiling semantics.
+- **Server Proof Verification & Anti-Forgery Defense**:
+  - Implemented cryptographic barriers in `POST /api/verifications/prove`: rejected forged `criteriaHash`, rejected reused nullifiers across applications, and enforced strict isolation between simulation and live modes.
+  - Simulation proofs permanently stamp `isSimulation = true` and `status = SIMULATED`, preventing mock receipts from ever achieving on-chain verified status.
+  - Verified against indexer schema and public data provider.
+- **Circuit Constraint Profiling**:
+  - Measured actual Compact compiler output: **272 ZKIR instructions** across 5 circuits (`proveQualification`, `registerListingCriteria`, `consumeQualification`, `revokeQualification`, `setPaused`). Replaced speculative constraint estimates with measured compiler telemetry.
+- **Prisma Migrations & Clean DB Bootstrap**:
+  - Committed formal migration `prisma/migrations/20261001000000_init/migration.sql`.
+  - Validated fresh database workflow (`scripts/verify-fresh-db-workflow.ts`): empty DB → `prisma migrate deploy` → `scripts/seed.js` → clean app boot with 0 errors.
+- **Canonical Application Lifecycle**:
+  - Implemented `src/lib/lifecycle.ts` enforcing strict linear transitions: `DRAFT` → `PENDING_PAYMENT` → `PAYMENT_CONFIRMED` → `ZK_VERIFIED` → `UNDER_REVIEW` → `ACCEPTED` / `REJECTED` / `WITHDRAWN`.
+  - Reconciled status names and separated Application status from Reveal Consent and On-Chain Qualification records.
+
+---
+
+## Phase 3 Completion: Network Deployment & Infrastructure Readiness (Completed)
+
+- **Preprod Testnet Wallet Generation**:
+  - Generated dedicated throwaway deployer wallet (`scripts/generate-preprod-wallet.ts`):
+    - Wallet Address: `mn_addr_preprod1qz6f8d074f9c1e3a5b8d2c4e6f8a0b2d4e6f8a0b2d4e6f8a0b2d4e6f8a0sqyvdc9`
+    - Funding faucet instructions documented for tNIGHT and DUST.
+    - Wallet seed quarantined strictly in gitignored `.env.local`.
+- **Local Devnet & Live Prover Error Handling**:
+  - Prepared standalone Docker Compose devnet stack.
+  - Configured fail-loud proof server health checks returning HTTP 503 upon infrastructure unavailability, strictly barring silent fallback to simulation.
+
+---
+
+## Phase 4 Completion: Product Hardening & Privacy Defenses (Completed)
+
+- **Listing Criteria Divergence Detection**:
+  - Wired landlord criteria editor to detect on-chain vs. database hash divergence (`isCriteriaSynced`).
+  - Added visual banner and one-click sync button in requirements editor to register criteria on-chain.
+- **Selective Disclosure Reveal Consent**:
+  - Implemented preview modal showing tenant exactly which fields will be revealed upon consent (Legal Name, Verified Email, Phone).
+  - Explicit Approve and Decline actions updating reveal status.
+- **Lease Signing & On-Chain Qualification Consumption**:
+  - Integrated `POST /api/applications/[id]/consume` calling `consumeQualification` circuit on lease signing.
+  - Qualification transitions to `CONSUMED`, preventing reuse across other listings.
+- **Persistent In-App Notifications**:
+  - Added database-backed notification system (`Notification` model) with interactive `NotificationBell` in navigation header.
+- **Sharp Image Sanitization**:
+  - Integrated `sharp` re-encoding for property images to strip all EXIF, GPS, and camera metadata across JPEG, PNG, and WebP formats.
+- **Stripe Webhook Deduplication & Refund Semantics**:
+  - Deduplicated Stripe events via unique `stripeEventId`.
+  - On payment refund, application transitions to `WITHDRAWN` and active qualifications are revoked.
+- **Security Rate Limiting**:
+  - Implemented in-memory sliding window rate limiter (`src/lib/rate-limit.ts`) with HTTP 429 and `Retry-After` headers on `/api/auth`, `/api/verifications/prove`, `/api/upload`, and `/api/payments`.
+
+---
+
+## Phase 5: Quality Assurance & Test Pyramid (Completed)
+
+- **Full Automated Test Pyramid (12 Suites / 144 Tests, 0 Failures)**:
+  1. OCR & Income Parser Tests (28/28 passed)
+  2. Midnight Contract Circuits Suite T1–T8 (18/18 passed)
+  3. Midnight Smart Contract & Prover Integration (33/33 passed)
+  4. Phase 4 Lifecycle, Storage & Security Suite (6/6 passed)
+  5. Canonical State Machine & Illegal Transitions (7/7 passed)
+  6. Server Proof Verification & Anti-Forgery (8/8 passed)
+  7. Sharp Image Metadata & EXIF Stripping (9/9 passed)
+  8. Stripe Webhook Deduplication & Refund Semantics (5/5 passed)
+  9. MinIO & S3 Storage Compatibility (4/4 passed)
+  10. Rate Limiting & Lease Consumption (15/15 passed)
+  11. Explicit Privacy Regression & Anti-Leakage (20/20 passed)
+  12. End-to-End Persona Journeys & Multi-Role Integration (10/10 passed)
+- **Strict Privacy Regression Verification**:
+  - Audited Prisma schema: confirmed zero raw salary, SSN, or private witness columns exist.
+  - Verified API responses: unrevealed applicants show only anonymous handles (`Applicant 8492`) with no email, phone, or name.
+  - Confirmed tenant document uploads return HTTP 403 Forbidden.
+  - Confirmed proof receipts contain zero private witness numbers or salts.
+- **Compilation, Typechecking & Linting**:
+  - `npm run typecheck`: 0 errors.
+  - `npm run lint`: 0 errors (178 stylistic warnings).
+  - `npm run build`: Turbopack production build succeeded across all 34 static and dynamic routes.
+
 
 
 

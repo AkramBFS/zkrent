@@ -33,6 +33,7 @@ enum VerificationStatus {
   PENDING
   VERIFIED
   FAILED
+  SIMULATED
 }
 
 enum RevealStatus {
@@ -43,18 +44,19 @@ enum RevealStatus {
 }
 
 model User {
-  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   role           UserRole
-  email          String        @unique
+  email          String         @unique
   displayName    String?
   passwordHash   String?
   authProvider   String?
   authProviderId String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @default(now()) @updatedAt
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @default(now()) @updatedAt
   properties     Property[]
   applications   Application[]
   payments       Payment[]
+  notifications  Notification[]
 
   @@unique([authProvider, authProviderId])
   @@map("users")
@@ -83,6 +85,7 @@ model Property {
   maxRentToIncomeRatioBps Int     @default(3300)
   minCreditScore    Int           @default(650)
   minEmploymentMonths Int         @default(12)
+  primeMaxRentToIncomeRatioBps Int @default(2500)
   primeMinIncomeRatioBps Int      @default(2500)
   primeMinCreditScore Int         @default(750)
   criteriaHash      String?
@@ -106,6 +109,7 @@ model Application {
   status             ApplicationStatus  @default(PENDING_PAYMENT)
   paymentStatus      PaymentStatus      @default(PENDING)
   verificationStatus VerificationStatus @default(PENDING)
+  isSimulation       Boolean            @default(false)
   revealStatus       RevealStatus       @default(NONE)
   revealRequestedAt  DateTime?
   revealGrantedAt    DateTime?
@@ -129,6 +133,7 @@ model Payment {
   status                PaymentStatus @default(PENDING)
   stripeSessionId       String?       @unique
   stripePaymentIntentId String?
+  stripeEventId         String?       @unique
   transactionId         String?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @default(now()) @updatedAt
@@ -137,25 +142,41 @@ model Payment {
 }
 
 model Verification {
-  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  applicationId String             @db.Uuid
-  application   Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
-  status        VerificationStatus @default(PENDING)
-  isEligible    Boolean            @default(false)
-  proofHash     String?
-  midnightTx    String?
-  circuitId     String?
-  merkleRoot    String?
-  blockHeight   Int?
-  provingTimeMs Int?
-  tier          Int                @default(0)
-  nullifier     String?
-  criteriaHash  String?
-  expiresAt     DateTime?
-  lifecycle     String             @default("Active")
-  verifiedAt    DateTime?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @default(now()) @updatedAt
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId    String             @db.Uuid
+  application      Application        @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  status           VerificationStatus @default(PENDING)
+  isEligible       Boolean            @default(false)
+  isSimulation     Boolean            @default(false)
+  tenantCommitment String?
+  proofHash        String?
+  midnightTx       String?
+  circuitId        String?
+  merkleRoot       String?
+  blockHeight      Int?
+  provingTimeMs    Int?
+  tier             Int                @default(0)
+  nullifier        String?
+  criteriaHash     String?
+  expiresAt        DateTime?
+  lifecycle        String             @default("Active")
+  verifiedAt       DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @default(now()) @updatedAt
 
   @@map("verifications")
+}
+
+model Notification {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("INFO")
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
 }

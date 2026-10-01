@@ -24,6 +24,38 @@ const suites = [
     name: 'Phase 4 Lifecycle, Storage & Security Suite',
     path: resolve(rootDir, 'scripts/test-phase4-lifecycle.ts'),
   },
+  {
+    name: 'Canonical State Machine & Illegal Transition Tests',
+    path: resolve(rootDir, 'scripts/test-lifecycle-machine.ts'),
+  },
+  {
+    name: 'Server Proof Verification & Anti-Forgery Tests',
+    path: resolve(rootDir, 'scripts/test-proof-verification.ts'),
+  },
+  {
+    name: 'Sharp Image Metadata & EXIF Stripping Tests',
+    path: resolve(rootDir, 'scripts/test-image-metadata.ts'),
+  },
+  {
+    name: 'Stripe Webhook Deduplication & Refund Semantics Tests',
+    path: resolve(rootDir, 'scripts/test-stripe-webhook-dedupe.ts'),
+  },
+  {
+    name: 'MinIO & S3 Storage Compatibility Tests',
+    path: resolve(rootDir, 'scripts/test-storage-minio-s3.ts'),
+  },
+  {
+    name: 'Rate Limiting & Lease Consumption Tests',
+    path: resolve(rootDir, 'scripts/test-security-rate-limit.ts'),
+  },
+  {
+    name: 'Explicit Privacy Regression & Anti-Leakage Suite',
+    path: resolve(rootDir, 'scripts/test-privacy-regression.ts'),
+  },
+  {
+    name: 'End-to-End Persona Journeys & Multi-Role Integration Suite',
+    path: resolve(rootDir, 'scripts/test-e2e-journey.ts'),
+  },
 ];
 
 console.log('==============================================================');

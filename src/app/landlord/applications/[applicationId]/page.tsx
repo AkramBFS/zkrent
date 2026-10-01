@@ -43,6 +43,11 @@ export default function LandlordApplicantDetailPage() {
   const property = application ? getProperty(application.propertyId) : undefined;
   const [requestSent, setRequestSent] = useState(false);
   const [leaseOfferedMessage, setLeaseOfferedMessage] = useState(false);
+  const [consumedReceipt, setConsumedReceipt] = useState<{
+    txHash: string;
+    circuitId: string;
+    blockHeight?: number;
+  } | null>(null);
 
   const handleRequestReveal = async () => {
     await requestReveal(applicationId);
@@ -51,11 +56,24 @@ export default function LandlordApplicantDetailPage() {
 
   const handleOfferLease = async () => {
     try {
-      await fetch(`/api/applications/${applicationId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'LEASE_OFFERED' }),
+      const res = await fetch(`/api/applications/${applicationId}/consume`, {
+        method: 'POST',
       });
+      if (res.ok) {
+        const data = await res.json();
+        setConsumedReceipt({
+          txHash: data.midnightTxHash,
+          circuitId: data.circuitId || 'consumeQualification',
+          blockHeight: data.blockHeight,
+        });
+      } else {
+        // Fallback to direct patch if not yet consumed
+        await fetch(`/api/applications/${applicationId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'LEASE_OFFERED' }),
+        });
+      }
       await fetchApplications();
     } catch (e) {
       console.error(e);
@@ -241,20 +259,26 @@ export default function LandlordApplicantDetailPage() {
                     </div>
                   </div>
 
-                  <div className="pt-2 flex items-center justify-between">
+                  <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <span className="text-xs text-emerald-800 font-mono">
-                      {leaseOfferedMessage ? '✓ Lease offered to tenant!' : 'Ready to finalize contract.'}
+                      {leaseOfferedMessage ? '✓ Formal Lease Signed & ZK Qualification Consumed' : 'Ready to finalize contract.'}
                     </span>
 
-                    {!leaseOfferedMessage && (
+                    {!leaseOfferedMessage ? (
                       <motion.button
                         whileHover={prefersReduced ? undefined : { scale: 1.02 }}
                         whileTap={prefersReduced ? undefined : { scale: 0.98 }}
                         onClick={handleOfferLease}
                         className="px-5 py-2.5 rounded-md bg-[#4A6B32] hover:bg-[#3A5427] text-white font-bold text-xs font-mono shadow transition-colors cursor-pointer"
                       >
-                        Send Formal Lease Offer →
+                        Sign Lease & Consume ZK Record →
                       </motion.button>
+                    ) : consumedReceipt && (
+                      <div className="text-[11px] font-mono text-[#231F20] bg-white p-2.5 rounded border border-emerald-300 space-y-1">
+                        <span className="text-emerald-700 font-bold block">Midnight Contract Receipt</span>
+                        <div className="text-[#3D3531]">Circuit: <code className="text-[#231F20]">{consumedReceipt.circuitId}</code></div>
+                        <div className="text-[#3D3531] truncate max-w-xs">Tx: <code className="text-[#231F20]">{consumedReceipt.txHash}</code></div>
+                      </div>
                     )}
                   </div>
                 </motion.div>

@@ -40,6 +40,16 @@ export async function POST(req: NextRequest) {
 
   console.log(`[Stripe Webhook] Received event: ${event.type} (${event.id})`);
 
+  // 1. Strict Idempotency & Deduplication on Stripe event.id
+  const duplicateEvent = await prisma.payment.findFirst({
+    where: { stripeEventId: event.id },
+  });
+
+  if (duplicateEvent) {
+    console.log(`[Stripe Webhook] Event ${event.id} already processed. Deduplication skip.`);
+    return NextResponse.json({ received: true, deduplicated: true });
+  }
+
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
@@ -52,7 +62,7 @@ export async function POST(req: NextRequest) {
           break;
         }
 
-        // 1. Idempotency check: see if payment is already marked PAID
+        // Idempotency check: see if payment is already marked PAID
         const existingPayment = await prisma.payment.findFirst({
           where: {
             OR: [
@@ -67,18 +77,18 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ received: true, alreadyProcessed: true });
         }
 
-        // 2. Update Payment record
+        // Update or create Payment record with stripeEventId
         if (existingPayment) {
           await prisma.payment.update({
             where: { id: existingPayment.id },
             data: {
               status: 'PAID',
               stripePaymentIntentId: paymentIntentId ?? existingPayment.stripePaymentIntentId,
+              stripeEventId: event.id,
               transactionId: session.id,
             },
           });
         } else {
-          // Fallback if session wasn't tracked beforehand
           await prisma.payment.create({
             data: {
               applicationId,
@@ -88,22 +98,20 @@ export async function POST(req: NextRequest) {
               status: 'PAID',
               stripeSessionId: session.id,
               stripePaymentIntentId: paymentIntentId,
+              stripeEventId: event.id,
               transactionId: session.id,
             },
           });
         }
 
-        // 3. Event-ordering safety on Application status
+        // Event-ordering safety on Application status
         const app = await prisma.application.findUnique({
           where: { id: applicationId },
           select: { status: true },
         });
 
         if (app) {
-          // Only transition to PAYMENT_CONFIRMED if application was in PENDING_PAYMENT
-          // Do NOT downgrade an application if it was already VERIFYING or ZK_VERIFIED
           const newStatus = app.status === 'PENDING_PAYMENT' ? 'PAYMENT_CONFIRMED' : app.status;
-
           await prisma.application.update({
             where: { id: applicationId },
             data: {
@@ -123,7 +131,7 @@ export async function POST(req: NextRequest) {
 
         await prisma.payment.updateMany({
           where: { stripeSessionId: session.id, status: 'PENDING' },
-          data: { status: 'FAILED' },
+          data: { status: 'FAILED', stripeEventId: event.id },
         });
 
         if (applicationId) {
@@ -155,7 +163,7 @@ export async function POST(req: NextRequest) {
         if (payment && payment.status !== 'PAID') {
           await prisma.payment.update({
             where: { id: payment.id },
-            data: { status: 'FAILED' },
+            data: { status: 'FAILED', stripeEventId: event.id },
           });
 
           await prisma.application.update({
@@ -175,12 +183,19 @@ export async function POST(req: NextRequest) {
         if (paymentIntentId) {
           const payment = await prisma.payment.findFirst({
             where: { stripePaymentIntentId: paymentIntentId },
+            include: { application: { include: { property: true } } },
           });
 
           if (payment) {
             await prisma.payment.update({
               where: { id: payment.id },
-              data: { status: 'REFUNDED' },
+              data: { status: 'REFUNDED', stripeEventId: event.id },
+            });
+
+            // Refund Semantics: If proof was delivered, revoke active verification
+            await prisma.verification.updateMany({
+              where: { applicationId: payment.applicationId, lifecycle: 'Active' },
+              data: { lifecycle: 'Revoked' },
             });
 
             await prisma.application.update({
@@ -190,6 +205,19 @@ export async function POST(req: NextRequest) {
                 status: 'WITHDRAWN',
               },
             });
+
+            // Notify landlord of qualification revocation due to refund
+            if (payment.application?.property) {
+              await prisma.notification.create({
+                data: {
+                  userId: payment.application.property.landlordId,
+                  title: 'Verification Revoked (Refund Issued)',
+                  message: `Payment for application ${payment.application.applicantDisplayId} was refunded. Active qualification record has been revoked.`,
+                  type: 'WARNING',
+                  link: `/properties/${payment.application.propertyId}/applications`,
+                },
+              });
+            }
           }
         }
         break;

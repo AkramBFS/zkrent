@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { getStorageProvider } from '@/lib/storage';
+import { applyRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
+  const rateLimitResponse = applyRateLimit(req, { limit: 15, windowMs: 60000, prefix: 'upload' });
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
 

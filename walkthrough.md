@@ -58,7 +58,7 @@ flowchart TD
 10. **ZK Verification Hero Screen (`/tenant/applications/[applicationId]/verify`)**:
     - *State 1*: Requirements recap & on-device privacy guarantee.
     - *State 2*: Private credentials entry with explicit on-device framing.
-    - *State 3*: Flagship proof generation animation (redaction bars $\to$ 38,420 Halo2 constraints $\to$ SNARK synthesis $\to$ Midnight Network).
+    - *State 3*: Flagship proof generation animation (redaction bars $\to$ 272 Compact ZKIR instructions $\to$ SNARK synthesis $\to$ Midnight Network).
     - *State 4*: Stamped Seal verdict ("ELIGIBLE"), confetti burst, requirement pass/fail breakdown, and Midnight tx hash.
 11. **Proof Vault / Verification History (`/tenant/verification`)**: Past cryptographic receipts with timestamps, constraints, and audit drawers.
 12. **Single Proof Receipt (`/tenant/verification/[applicationId]`)**: Fullscreen inspectable verification receipt with block height and merkle root.
@@ -90,7 +90,7 @@ flowchart TD
 
 ## 🔒 Verification & Privacy Compliance
 
-- **Build Status**: Verified with `npm run build` (`26/26` pages generated successfully with zero TypeScript or route errors).
+- **Build Status**: Verified with `npm run build` (`34/34` routes generated successfully with zero TypeScript or route errors).
 - **Hard Privacy Rule**: Verified that no raw salary amounts, tax documents, or employer names render anywhere on the landlord side.
 - **Inspectability**: Skeptical landlords can expand the "Verify Receipt" drawer to verify Midnight smart contract transaction hashes (`0x7a8f...`) and circuit IDs without compromising tenant privacy.
 - **State Persistence**: State is stored reactively in `ZkRentContext` with LocalStorage backing and a one-click "Reset Demo State" button in the utility bar.

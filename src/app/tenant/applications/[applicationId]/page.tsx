@@ -239,10 +239,50 @@ export default function TenantApplicationDetailsPage() {
                       </h3>
                       <p className="text-xs text-[#3D3531] leading-relaxed">
                         The property owner for <strong>{application.propertyTitle}</strong> has reviewed your
-                        eligible ZK proof and wants to proceed with lease drafting. Would you like to authorize
-                        sharing your legal name (<strong>{application.tenantName}</strong>) and contact details (
-                        {application.tenantEmail})?
+                        eligible ZK proof and wants to proceed with lease drafting. Review what will and will not be disclosed before consenting.
                       </p>
+                    </div>
+                  </div>
+
+                  {/* FIELD DISCLOSURE PREVIEW */}
+                  <div className="p-4 rounded-lg bg-white border border-[#231F20]/15 space-y-3 font-mono text-xs">
+                    <div className="font-bold text-[#231F20] uppercase text-[10px] tracking-wider">
+                      Selective Disclosure Preview
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+                      <div className="space-y-1.5 p-3 rounded bg-amber-50/60 border border-amber-200">
+                        <span className="font-bold text-amber-900 block flex items-center gap-1">
+                          <EyeOff className="w-3.5 h-3.5 text-amber-700" /> Fields to be Disclosed:
+                        </span>
+                        <ul className="space-y-1 text-[#3D3531]">
+                          <li className="flex items-center gap-1.5 text-emerald-800">
+                            <span className="text-emerald-600 font-bold">✓</span> Legal Full Name ({application.tenantName})
+                          </li>
+                          <li className="flex items-center gap-1.5 text-emerald-800">
+                            <span className="text-emerald-600 font-bold">✓</span> Direct Contact Email ({application.tenantEmail})
+                          </li>
+                          <li className="flex items-center gap-1.5 text-emerald-800">
+                            <span className="text-emerald-600 font-bold">✓</span> Direct Phone Number ({application.tenantPhone || '+1 (512) 892-4910'})
+                          </li>
+                        </ul>
+                      </div>
+
+                      <div className="space-y-1.5 p-3 rounded bg-[#4A6B32]/10 border border-[#4A6B32]/30">
+                        <span className="font-bold text-[#3A5427] block flex items-center gap-1">
+                          <Lock className="w-3.5 h-3.5 text-[#4A6B32]" /> Remains Sealed & Private:
+                        </span>
+                        <ul className="space-y-1 text-[#3D3531]">
+                          <li className="flex items-center gap-1.5 text-[#4A6B32]">
+                            <span className="text-[#4A6B32] font-bold">🔒</span> Exact Annual Income ($)
+                          </li>
+                          <li className="flex items-center gap-1.5 text-[#4A6B32]">
+                            <span className="text-[#4A6B32] font-bold">🔒</span> Exact Credit Score
+                          </li>
+                          <li className="flex items-center gap-1.5 text-[#4A6B32]">
+                            <span className="text-[#4A6B32] font-bold">🔒</span> Bank Statements & Paystubs
+                          </li>
+                        </ul>
+                      </div>
                     </div>
                   </div>
 
@@ -262,7 +302,7 @@ export default function TenantApplicationDetailsPage() {
                         onClick={handleGrantConsent}
                         className="flex-1 py-3 px-4 rounded-md bg-[#B86A36] hover:bg-[#A05A2C] text-white font-bold text-xs font-mono transition-colors shadow cursor-pointer"
                       >
-                        ✓ Yes, Authorize Reveal for Lease Drafting
+                        ✓ Authorize & Approve Reveal
                       </motion.button>
                       <motion.button
                         whileHover={prefersReduced ? undefined : { scale: 1.02 }}
@@ -270,7 +310,7 @@ export default function TenantApplicationDetailsPage() {
                         onClick={handleDeclineConsent}
                         className="py-3 px-4 rounded-md bg-white border border-[#231F20]/20 text-[#231F20] font-mono text-xs hover:bg-[#E5E0D8] transition-colors cursor-pointer"
                       >
-                        ✕ Decline (Remain Anonymized)
+                        ✕ Decline (Stay Anonymized)
                       </motion.button>
                     </div>
                   )}

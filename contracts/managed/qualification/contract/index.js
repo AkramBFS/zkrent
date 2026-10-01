@@ -59,17 +59,19 @@ class _ListingCriteria_0 {
       minCreditScore: _descriptor_7.fromValue(value_0),
       requireCleanBackground: _descriptor_5.fromValue(value_0),
       minEmploymentMonths: _descriptor_7.fromValue(value_0),
-      primeMinIncomeRatioBps: _descriptor_7.fromValue(value_0),
+      primeMaxRentToIncomeRatioBps: _descriptor_7.fromValue(value_0),
       primeMinCreditScore: _descriptor_7.fromValue(value_0),
       active: _descriptor_5.fromValue(value_0)
     }
   }
   toValue(value_0) {
-    return _descriptor_0.toValue(value_0.landlordPk).concat(_descriptor_6.toValue(value_0.criteriaVersion).concat(_descriptor_0.toValue(value_0.criteriaHash).concat(_descriptor_3.toValue(value_0.monthlyRent).concat(_descriptor_3.toValue(value_0.minMonthlyIncome).concat(_descriptor_7.toValue(value_0.maxRentToIncomeRatioBps).concat(_descriptor_7.toValue(value_0.minCreditScore).concat(_descriptor_5.toValue(value_0.requireCleanBackground).concat(_descriptor_7.toValue(value_0.minEmploymentMonths).concat(_descriptor_7.toValue(value_0.primeMinIncomeRatioBps).concat(_descriptor_7.toValue(value_0.primeMinCreditScore).concat(_descriptor_5.toValue(value_0.active))))))))))));
+    return _descriptor_0.toValue(value_0.landlordPk).concat(_descriptor_6.toValue(value_0.criteriaVersion).concat(_descriptor_0.toValue(value_0.criteriaHash).concat(_descriptor_3.toValue(value_0.monthlyRent).concat(_descriptor_3.toValue(value_0.minMonthlyIncome).concat(_descriptor_7.toValue(value_0.maxRentToIncomeRatioBps).concat(_descriptor_7.toValue(value_0.minCreditScore).concat(_descriptor_5.toValue(value_0.requireCleanBackground).concat(_descriptor_7.toValue(value_0.minEmploymentMonths).concat(_descriptor_7.toValue(value_0.primeMaxRentToIncomeRatioBps).concat(_descriptor_7.toValue(value_0.primeMinCreditScore).concat(_descriptor_5.toValue(value_0.active))))))))))));
   }
 }
 
 const _descriptor_8 = new _ListingCriteria_0();
+
+const _descriptor_9 = new __compactRuntime.CompactTypeVector(3, _descriptor_0);
 
 class _Attestation_0 {
   alignment() {
@@ -92,15 +94,11 @@ class _Attestation_0 {
   }
 }
 
-const _descriptor_9 = new _Attestation_0();
+const _descriptor_10 = new _Attestation_0();
 
-const _descriptor_10 = new __compactRuntime.CompactTypeVector(2, _descriptor_0);
+const _descriptor_11 = new __compactRuntime.CompactTypeVector(12, _descriptor_0);
 
-const _descriptor_11 = new __compactRuntime.CompactTypeVector(3, _descriptor_0);
-
-const _descriptor_12 = new __compactRuntime.CompactTypeVector(6, _descriptor_0);
-
-const _descriptor_13 = new __compactRuntime.CompactTypeVector(4, _descriptor_0);
+const _descriptor_12 = new __compactRuntime.CompactTypeVector(2, _descriptor_0);
 
 class _Either_0 {
   alignment() {
@@ -118,9 +116,9 @@ class _Either_0 {
   }
 }
 
-const _descriptor_14 = new _Either_0();
+const _descriptor_13 = new _Either_0();
 
-const _descriptor_15 = new __compactRuntime.CompactTypeUnsignedInteger(340282366920938463463374607431768211455n, 16);
+const _descriptor_14 = new __compactRuntime.CompactTypeUnsignedInteger(340282366920938463463374607431768211455n, 16);
 
 class _ContractAddress_0 {
   alignment() {
@@ -136,7 +134,7 @@ class _ContractAddress_0 {
   }
 }
 
-const _descriptor_16 = new _ContractAddress_0();
+const _descriptor_15 = new _ContractAddress_0();
 
 export class Contract {
   witnesses;
@@ -162,6 +160,9 @@ export class Contract {
     }
     this.witnesses = witnesses_0;
     this.circuits = {
+      async computeCriteriaHash(context, ...args_1) {
+        return { result: pureCircuits.computeCriteriaHash(...args_1), context };
+      },
       setPaused: async (...args_1) => {
         if (args_1.length !== 2) {
           throw new __compactRuntime.CompactError(`setPaused: expected 2 arguments (as invoked from Typescript), received ${args_1.length}`);
@@ -171,14 +172,14 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
           __compactRuntime.typeError('setPaused',
                                      'argument 1 (as invoked from Typescript)',
-                                     'qualification.compact line 112 char 1',
+                                     'qualification.compact line 130 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
         if (!(typeof(paused_0) === 'boolean')) {
           __compactRuntime.typeError('setPaused',
                                      'argument 1 (argument 2 as invoked from Typescript)',
-                                     'qualification.compact line 112 char 1',
+                                     'qualification.compact line 130 char 1',
                                      'Boolean',
                                      paused_0)
         }
@@ -211,90 +212,90 @@ export class Contract {
         const minCreditScore_0 = args_1[5];
         const requireCleanBackground_0 = args_1[6];
         const minEmploymentMonths_0 = args_1[7];
-        const primeMinIncomeRatioBps_0 = args_1[8];
+        const primeMaxRentToIncomeRatioBps_0 = args_1[8];
         const primeMinCreditScore_0 = args_1[9];
         const active_0 = args_1[10];
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
           __compactRuntime.typeError('registerListingCriteria',
                                      'argument 1 (as invoked from Typescript)',
-                                     'qualification.compact line 123 char 1',
+                                     'qualification.compact line 141 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
         if (!(listingId_0.buffer instanceof ArrayBuffer && listingId_0.BYTES_PER_ELEMENT === 1 && listingId_0.length === 32)) {
           __compactRuntime.typeError('registerListingCriteria',
                                      'argument 1 (argument 2 as invoked from Typescript)',
-                                     'qualification.compact line 123 char 1',
+                                     'qualification.compact line 141 char 1',
                                      'Bytes<32>',
                                      listingId_0)
         }
         if (!(typeof(monthlyRent_0) === 'bigint' && monthlyRent_0 >= 0n && monthlyRent_0 <= 18446744073709551615n)) {
           __compactRuntime.typeError('registerListingCriteria',
                                      'argument 2 (argument 3 as invoked from Typescript)',
-                                     'qualification.compact line 123 char 1',
+                                     'qualification.compact line 141 char 1',
                                      'Uint<0..18446744073709551616>',
                                      monthlyRent_0)
         }
         if (!(typeof(minMonthlyIncome_0) === 'bigint' && minMonthlyIncome_0 >= 0n && minMonthlyIncome_0 <= 18446744073709551615n)) {
           __compactRuntime.typeError('registerListingCriteria',
                                      'argument 3 (argument 4 as invoked from Typescript)',
-                                     'qualification.compact line 123 char 1',
+                                     'qualification.compact line 141 char 1',
                                      'Uint<0..18446744073709551616>',
                                      minMonthlyIncome_0)
         }
         if (!(typeof(maxRentToIncomeRatioBps_0) === 'bigint' && maxRentToIncomeRatioBps_0 >= 0n && maxRentToIncomeRatioBps_0 <= 65535n)) {
           __compactRuntime.typeError('registerListingCriteria',
                                      'argument 4 (argument 5 as invoked from Typescript)',
-                                     'qualification.compact line 123 char 1',
+                                     'qualification.compact line 141 char 1',
                                      'Uint<0..65536>',
                                      maxRentToIncomeRatioBps_0)
         }
         if (!(typeof(minCreditScore_0) === 'bigint' && minCreditScore_0 >= 0n && minCreditScore_0 <= 65535n)) {
           __compactRuntime.typeError('registerListingCriteria',
                                      'argument 5 (argument 6 as invoked from Typescript)',
-                                     'qualification.compact line 123 char 1',
+                                     'qualification.compact line 141 char 1',
                                      'Uint<0..65536>',
                                      minCreditScore_0)
         }
         if (!(typeof(requireCleanBackground_0) === 'boolean')) {
           __compactRuntime.typeError('registerListingCriteria',
                                      'argument 6 (argument 7 as invoked from Typescript)',
-                                     'qualification.compact line 123 char 1',
+                                     'qualification.compact line 141 char 1',
                                      'Boolean',
                                      requireCleanBackground_0)
         }
         if (!(typeof(minEmploymentMonths_0) === 'bigint' && minEmploymentMonths_0 >= 0n && minEmploymentMonths_0 <= 65535n)) {
           __compactRuntime.typeError('registerListingCriteria',
                                      'argument 7 (argument 8 as invoked from Typescript)',
-                                     'qualification.compact line 123 char 1',
+                                     'qualification.compact line 141 char 1',
                                      'Uint<0..65536>',
                                      minEmploymentMonths_0)
         }
-        if (!(typeof(primeMinIncomeRatioBps_0) === 'bigint' && primeMinIncomeRatioBps_0 >= 0n && primeMinIncomeRatioBps_0 <= 65535n)) {
+        if (!(typeof(primeMaxRentToIncomeRatioBps_0) === 'bigint' && primeMaxRentToIncomeRatioBps_0 >= 0n && primeMaxRentToIncomeRatioBps_0 <= 65535n)) {
           __compactRuntime.typeError('registerListingCriteria',
                                      'argument 8 (argument 9 as invoked from Typescript)',
-                                     'qualification.compact line 123 char 1',
+                                     'qualification.compact line 141 char 1',
                                      'Uint<0..65536>',
-                                     primeMinIncomeRatioBps_0)
+                                     primeMaxRentToIncomeRatioBps_0)
         }
         if (!(typeof(primeMinCreditScore_0) === 'bigint' && primeMinCreditScore_0 >= 0n && primeMinCreditScore_0 <= 65535n)) {
           __compactRuntime.typeError('registerListingCriteria',
                                      'argument 9 (argument 10 as invoked from Typescript)',
-                                     'qualification.compact line 123 char 1',
+                                     'qualification.compact line 141 char 1',
                                      'Uint<0..65536>',
                                      primeMinCreditScore_0)
         }
         if (!(typeof(active_0) === 'boolean')) {
           __compactRuntime.typeError('registerListingCriteria',
                                      'argument 10 (argument 11 as invoked from Typescript)',
-                                     'qualification.compact line 123 char 1',
+                                     'qualification.compact line 141 char 1',
                                      'Boolean',
                                      active_0)
         }
         const context = __compactRuntime.copyCircuitContext(contextOrig_0);
         const partialProofData = {
           input: {
-            value: _descriptor_0.toValue(listingId_0).concat(_descriptor_3.toValue(monthlyRent_0).concat(_descriptor_3.toValue(minMonthlyIncome_0).concat(_descriptor_7.toValue(maxRentToIncomeRatioBps_0).concat(_descriptor_7.toValue(minCreditScore_0).concat(_descriptor_5.toValue(requireCleanBackground_0).concat(_descriptor_7.toValue(minEmploymentMonths_0).concat(_descriptor_7.toValue(primeMinIncomeRatioBps_0).concat(_descriptor_7.toValue(primeMinCreditScore_0).concat(_descriptor_5.toValue(active_0)))))))))),
+            value: _descriptor_0.toValue(listingId_0).concat(_descriptor_3.toValue(monthlyRent_0).concat(_descriptor_3.toValue(minMonthlyIncome_0).concat(_descriptor_7.toValue(maxRentToIncomeRatioBps_0).concat(_descriptor_7.toValue(minCreditScore_0).concat(_descriptor_5.toValue(requireCleanBackground_0).concat(_descriptor_7.toValue(minEmploymentMonths_0).concat(_descriptor_7.toValue(primeMaxRentToIncomeRatioBps_0).concat(_descriptor_7.toValue(primeMinCreditScore_0).concat(_descriptor_5.toValue(active_0)))))))))),
             alignment: _descriptor_0.alignment().concat(_descriptor_3.alignment().concat(_descriptor_3.alignment().concat(_descriptor_7.alignment().concat(_descriptor_7.alignment().concat(_descriptor_5.alignment().concat(_descriptor_7.alignment().concat(_descriptor_7.alignment().concat(_descriptor_7.alignment().concat(_descriptor_5.alignment())))))))))
           },
           output: undefined,
@@ -310,7 +311,7 @@ export class Contract {
                                                                minCreditScore_0,
                                                                requireCleanBackground_0,
                                                                minEmploymentMonths_0,
-                                                               primeMinIncomeRatioBps_0,
+                                                               primeMaxRentToIncomeRatioBps_0,
                                                                primeMinCreditScore_0,
                                                                active_0);
         partialProofData.output = { value: [], alignment: [] };
@@ -328,28 +329,28 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
           __compactRuntime.typeError('proveQualification',
                                      'argument 1 (as invoked from Typescript)',
-                                     'qualification.compact line 177 char 1',
+                                     'qualification.compact line 200 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
         if (!(listingId_0.buffer instanceof ArrayBuffer && listingId_0.BYTES_PER_ELEMENT === 1 && listingId_0.length === 32)) {
           __compactRuntime.typeError('proveQualification',
                                      'argument 1 (argument 2 as invoked from Typescript)',
-                                     'qualification.compact line 177 char 1',
+                                     'qualification.compact line 200 char 1',
                                      'Bytes<32>',
                                      listingId_0)
         }
         if (!(applicationId_0.buffer instanceof ArrayBuffer && applicationId_0.BYTES_PER_ELEMENT === 1 && applicationId_0.length === 32)) {
           __compactRuntime.typeError('proveQualification',
                                      'argument 2 (argument 3 as invoked from Typescript)',
-                                     'qualification.compact line 177 char 1',
+                                     'qualification.compact line 200 char 1',
                                      'Bytes<32>',
                                      applicationId_0)
         }
         if (!(typeof(currentTime_0) === 'bigint' && currentTime_0 >= 0n && currentTime_0 <= 18446744073709551615n)) {
           __compactRuntime.typeError('proveQualification',
                                      'argument 3 (argument 4 as invoked from Typescript)',
-                                     'qualification.compact line 177 char 1',
+                                     'qualification.compact line 200 char 1',
                                      'Uint<0..18446744073709551616>',
                                      currentTime_0)
         }
@@ -381,14 +382,14 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
           __compactRuntime.typeError('consumeQualification',
                                      'argument 1 (as invoked from Typescript)',
-                                     'qualification.compact line 263 char 1',
+                                     'qualification.compact line 299 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
         if (!(applicationId_0.buffer instanceof ArrayBuffer && applicationId_0.BYTES_PER_ELEMENT === 1 && applicationId_0.length === 32)) {
           __compactRuntime.typeError('consumeQualification',
                                      'argument 1 (argument 2 as invoked from Typescript)',
-                                     'qualification.compact line 263 char 1',
+                                     'qualification.compact line 299 char 1',
                                      'Bytes<32>',
                                      applicationId_0)
         }
@@ -418,14 +419,14 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.callContext.currentQueryContext != undefined)) {
           __compactRuntime.typeError('revokeQualification',
                                      'argument 1 (as invoked from Typescript)',
-                                     'qualification.compact line 292 char 1',
+                                     'qualification.compact line 328 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
         if (!(applicationId_0.buffer instanceof ArrayBuffer && applicationId_0.BYTES_PER_ELEMENT === 1 && applicationId_0.length === 32)) {
           __compactRuntime.typeError('revokeQualification',
                                      'argument 1 (argument 2 as invoked from Typescript)',
-                                     'qualification.compact line 292 char 1',
+                                     'qualification.compact line 328 char 1',
                                      'Bytes<32>',
                                      applicationId_0)
         }
@@ -483,7 +484,7 @@ export class Contract {
     if (!(admin_0.buffer instanceof ArrayBuffer && admin_0.BYTES_PER_ELEMENT === 1 && admin_0.length === 32)) {
       __compactRuntime.typeError('Contract state constructor',
                                  'argument 1 (argument 2 as invoked from Typescript)',
-                                 'qualification.compact line 70 char 1',
+                                 'qualification.compact line 76 char 1',
                                  'Bytes<32>',
                                  admin_0)
     }
@@ -588,19 +589,15 @@ export class Contract {
     }
   }
   _persistentHash_0(value_0) {
-    const result_0 = __compactRuntime.persistentHash(_descriptor_12, value_0);
+    const result_0 = __compactRuntime.persistentHash(_descriptor_11, value_0);
     return result_0;
   }
   _persistentHash_1(value_0) {
-    const result_0 = __compactRuntime.persistentHash(_descriptor_13, value_0);
+    const result_0 = __compactRuntime.persistentHash(_descriptor_12, value_0);
     return result_0;
   }
   _persistentHash_2(value_0) {
-    const result_0 = __compactRuntime.persistentHash(_descriptor_10, value_0);
-    return result_0;
-  }
-  _persistentHash_3(value_0) {
-    const result_0 = __compactRuntime.persistentHash(_descriptor_11, value_0);
+    const result_0 = __compactRuntime.persistentHash(_descriptor_9, value_0);
     return result_0;
   }
   _getAttestation_0(context, partialProofData) {
@@ -610,13 +607,13 @@ export class Contract {
     if (!(typeof(result_0) === 'object' && result_0.issuerPk.buffer instanceof ArrayBuffer && result_0.issuerPk.BYTES_PER_ELEMENT === 1 && result_0.issuerPk.length === 32 && result_0.subjectCommitment.buffer instanceof ArrayBuffer && result_0.subjectCommitment.BYTES_PER_ELEMENT === 1 && result_0.subjectCommitment.length === 32 && typeof(result_0.annualIncome) === 'bigint' && result_0.annualIncome >= 0n && result_0.annualIncome <= 18446744073709551615n && typeof(result_0.creditScore) === 'bigint' && result_0.creditScore >= 0n && result_0.creditScore <= 65535n && typeof(result_0.employmentMonths) === 'bigint' && result_0.employmentMonths >= 0n && result_0.employmentMonths <= 65535n && typeof(result_0.backgroundClean) === 'boolean' && typeof(result_0.issuedAt) === 'bigint' && result_0.issuedAt >= 0n && result_0.issuedAt <= 18446744073709551615n && typeof(result_0.expiresAt) === 'bigint' && result_0.expiresAt >= 0n && result_0.expiresAt <= 18446744073709551615n)) {
       __compactRuntime.typeError('getAttestation',
                                  'return value',
-                                 'qualification.compact line 61 char 1',
+                                 'qualification.compact line 67 char 1',
                                  'struct Attestation<issuerPk: Bytes<32>, subjectCommitment: Bytes<32>, annualIncome: Uint<0..18446744073709551616>, creditScore: Uint<0..65536>, employmentMonths: Uint<0..65536>, backgroundClean: Boolean, issuedAt: Uint<0..18446744073709551616>, expiresAt: Uint<0..18446744073709551616>>',
                                  result_0)
     }
     partialProofData.privateTranscriptOutputs.push({
-      value: _descriptor_9.toValue(result_0),
-      alignment: _descriptor_9.alignment()
+      value: _descriptor_10.toValue(result_0),
+      alignment: _descriptor_10.alignment()
     });
     return result_0;
   }
@@ -627,7 +624,7 @@ export class Contract {
     if (!(result_0.buffer instanceof ArrayBuffer && result_0.BYTES_PER_ELEMENT === 1 && result_0.length === 32)) {
       __compactRuntime.typeError('getTenantSecret',
                                  'return value',
-                                 'qualification.compact line 62 char 1',
+                                 'qualification.compact line 68 char 1',
                                  'Bytes<32>',
                                  result_0)
     }
@@ -644,7 +641,7 @@ export class Contract {
     if (!(result_0.buffer instanceof ArrayBuffer && result_0.BYTES_PER_ELEMENT === 1 && result_0.length === 32)) {
       __compactRuntime.typeError('getTenantSalt',
                                  'return value',
-                                 'qualification.compact line 63 char 1',
+                                 'qualification.compact line 69 char 1',
                                  'Bytes<32>',
                                  result_0)
     }
@@ -661,7 +658,7 @@ export class Contract {
     if (!(result_0.buffer instanceof ArrayBuffer && result_0.BYTES_PER_ELEMENT === 1 && result_0.length === 32)) {
       __compactRuntime.typeError('getCallerSecret',
                                  'return value',
-                                 'qualification.compact line 64 char 1',
+                                 'qualification.compact line 70 char 1',
                                  'Bytes<32>',
                                  result_0)
     }
@@ -672,7 +669,7 @@ export class Contract {
     return result_0;
   }
   _getPublicKey_0(sk_0) {
-    return this._persistentHash_2([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 112, 107, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    return this._persistentHash_1([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 112, 107, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                                    sk_0]);
   }
   _computeCriteriaHash_0(listingId_0,
@@ -680,24 +677,51 @@ export class Contract {
                          rent_0,
                          minInc_0,
                          maxRatio_0,
-                         minCred_0)
+                         minCred_0,
+                         requireCleanBackground_0,
+                         minEmploymentMonths_0,
+                         primeMaxRentToIncomeRatioBps_0,
+                         primeMinCreditScore_0,
+                         active_0)
   {
-    return this._persistentHash_0([listingId_0,
+    return this._persistentHash_0([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 99, 114, 105, 116, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+                                   listingId_0,
                                    __compactRuntime.convertBigintToBytes(32,
                                                                          version_0,
-                                                                         'qualification.compact line 96 char 5'),
+                                                                         'qualification.compact line 109 char 5'),
                                    __compactRuntime.convertBigintToBytes(32,
                                                                          rent_0,
-                                                                         'qualification.compact line 97 char 5'),
+                                                                         'qualification.compact line 110 char 5'),
                                    __compactRuntime.convertBigintToBytes(32,
                                                                          minInc_0,
-                                                                         'qualification.compact line 98 char 5'),
+                                                                         'qualification.compact line 111 char 5'),
                                    __compactRuntime.convertBigintToBytes(32,
                                                                          maxRatio_0,
-                                                                         'qualification.compact line 99 char 5'),
+                                                                         'qualification.compact line 112 char 5'),
                                    __compactRuntime.convertBigintToBytes(32,
                                                                          minCred_0,
-                                                                         'qualification.compact line 100 char 5')]);
+                                                                         'qualification.compact line 113 char 5'),
+                                   __compactRuntime.convertBigintToBytes(32,
+                                                                         requireCleanBackground_0
+                                                                         ?
+                                                                         1n :
+                                                                         0n,
+                                                                         'qualification.compact line 114 char 5'),
+                                   __compactRuntime.convertBigintToBytes(32,
+                                                                         minEmploymentMonths_0,
+                                                                         'qualification.compact line 115 char 5'),
+                                   __compactRuntime.convertBigintToBytes(32,
+                                                                         primeMaxRentToIncomeRatioBps_0,
+                                                                         'qualification.compact line 116 char 5'),
+                                   __compactRuntime.convertBigintToBytes(32,
+                                                                         primeMinCreditScore_0,
+                                                                         'qualification.compact line 117 char 5'),
+                                   __compactRuntime.convertBigintToBytes(32,
+                                                                         active_0
+                                                                         ?
+                                                                         1n :
+                                                                         0n,
+                                                                         'qualification.compact line 118 char 5')]);
   }
   async _assertNotPaused_0(context, partialProofData) {
     __compactRuntime.assert(!_descriptor_5.fromValue(__compactRuntime.queryLedgerState(context,
@@ -753,7 +777,7 @@ export class Contract {
                                    minCreditScore_0,
                                    requireCleanBackground_0,
                                    minEmploymentMonths_0,
-                                   primeMinIncomeRatioBps_0,
+                                   primeMaxRentToIncomeRatioBps_0,
                                    primeMinCreditScore_0,
                                    active_0)
   {
@@ -801,7 +825,7 @@ export class Contract {
     const version_0 = isExisting_0 ?
                       ((t1) => {
                         if (t1 > 4294967295n) {
-                          throw new __compactRuntime.CompactError('qualification.compact line 144 char 43: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 4294967295');
+                          throw new __compactRuntime.CompactError('qualification.compact line 162 char 43: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 4294967295');
                         }
                         return t1;
                       })(_descriptor_8.fromValue(__compactRuntime.queryLedgerState(context,
@@ -831,7 +855,12 @@ export class Contract {
                                                 monthlyRent_0,
                                                 minMonthlyIncome_0,
                                                 maxRentToIncomeRatioBps_0,
-                                                minCreditScore_0);
+                                                minCreditScore_0,
+                                                requireCleanBackground_0,
+                                                minEmploymentMonths_0,
+                                                primeMaxRentToIncomeRatioBps_0,
+                                                primeMinCreditScore_0,
+                                                active_0);
     const newCriteria_0 = { landlordPk: callerPk_0,
                             criteriaVersion: version_0,
                             criteriaHash: cHash_0,
@@ -841,7 +870,8 @@ export class Contract {
                             minCreditScore: minCreditScore_0,
                             requireCleanBackground: requireCleanBackground_0,
                             minEmploymentMonths: minEmploymentMonths_0,
-                            primeMinIncomeRatioBps: primeMinIncomeRatioBps_0,
+                            primeMaxRentToIncomeRatioBps:
+                              primeMaxRentToIncomeRatioBps_0,
                             primeMinCreditScore: primeMinCreditScore_0,
                             active: active_0 };
     __compactRuntime.queryLedgerState(context,
@@ -913,7 +943,7 @@ export class Contract {
                             'Attestation not yet valid');
     __compactRuntime.assert(currentTime_0 <= attestation_0.expiresAt,
                             'Attestation has expired');
-    const expectedCommitment_0 = this._persistentHash_3([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 116, 101, 110, 97, 110, 116, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    const expectedCommitment_0 = this._persistentHash_2([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 116, 101, 110, 97, 110, 116, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                                                          applicationId_0,
                                                          tenantSalt_0]);
     __compactRuntime.assert(this._equal_2(attestation_0.subjectCommitment,
@@ -921,7 +951,7 @@ export class Contract {
                             'Commitment mismatch');
     const minAnnualIncome_0 = ((t1) => {
                                 if (t1 > 18446744073709551615n) {
-                                  throw new __compactRuntime.CompactError('qualification.compact line 206 char 27: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
+                                  throw new __compactRuntime.CompactError('qualification.compact line 229 char 27: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
                                 }
                                 return t1;
                               })(listing_0.minMonthlyIncome * 12n);
@@ -931,13 +961,13 @@ export class Contract {
                             'Income below requirement');
     const rentRatioLhs_0 = ((t1) => {
                              if (t1 > 18446744073709551615n) {
-                               throw new __compactRuntime.CompactError('qualification.compact line 211 char 24: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
+                               throw new __compactRuntime.CompactError('qualification.compact line 234 char 24: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
                              }
                              return t1;
                            })(listing_0.monthlyRent * 120000n);
     const rentRatioRhs_0 = ((t1) => {
                              if (t1 > 18446744073709551615n) {
-                               throw new __compactRuntime.CompactError('qualification.compact line 212 char 24: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
+                               throw new __compactRuntime.CompactError('qualification.compact line 235 char 24: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
                              }
                              return t1;
                            })(attestation_0.annualIncome
@@ -959,41 +989,79 @@ export class Contract {
     }
     const primeRatioRhs_0 = ((t1) => {
                               if (t1 > 18446744073709551615n) {
-                                throw new __compactRuntime.CompactError('qualification.compact line 226 char 25: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
+                                throw new __compactRuntime.CompactError('qualification.compact line 249 char 25: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
                               }
                               return t1;
                             })(attestation_0.annualIncome
                                *
-                               listing_0.primeMinIncomeRatioBps);
+                               listing_0.primeMaxRentToIncomeRatioBps);
     const meetsPrimeRatio_0 = rentRatioLhs_0 <= primeRatioRhs_0;
     let t_3;
     const meetsPrimeCredit_0 = (t_3 = attestation_0.creditScore,
                                 t_3 >= listing_0.primeMinCreditScore);
     const isPrime_0 = meetsPrimeRatio_0 && meetsPrimeCredit_0;
     const tierValue_0 = isPrime_0 ? 1n : 0n;
-    const nullifier_0 = this._persistentHash_1([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 110, 117, 108, 108, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    const nullifier_0 = this._persistentHash_2([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 110, 117, 108, 108, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                                                 tenantSecret_0,
-                                                listingId_0,
-                                                __compactRuntime.convertBigintToBytes(32,
-                                                                                      attestation_0.issuedAt,
-                                                                                      'qualification.compact line 237 char 5')]);
-    __compactRuntime.assert(!_descriptor_5.fromValue(__compactRuntime.queryLedgerState(context,
-                                                                                       partialProofData,
-                                                                                       [
-                                                                                        { dup: { n: 0 } },
-                                                                                        { idx: { cached: false,
-                                                                                                 pushPath: false,
-                                                                                                 path: [
-                                                                                                        { tag: 'value',
-                                                                                                          value: { value: _descriptor_1.toValue(2n),
-                                                                                                                   alignment: _descriptor_1.alignment() } }] } },
-                                                                                        { push: { storage: false,
-                                                                                                  value: __compactRuntime.StateValue.newCell({ value: _descriptor_0.toValue(nullifier_0),
-                                                                                                                                               alignment: _descriptor_0.alignment() }).encode() } },
-                                                                                        'member',
-                                                                                        { popeq: { cached: true,
-                                                                                                   result: undefined } }]).value),
-                            'Applicant already proved qualification with this attestation for this listing');
+                                                listingId_0]);
+    const hasExisting_0 = _descriptor_5.fromValue(__compactRuntime.queryLedgerState(context,
+                                                                                    partialProofData,
+                                                                                    [
+                                                                                     { dup: { n: 0 } },
+                                                                                     { idx: { cached: false,
+                                                                                              pushPath: false,
+                                                                                              path: [
+                                                                                                     { tag: 'value',
+                                                                                                       value: { value: _descriptor_1.toValue(2n),
+                                                                                                                alignment: _descriptor_1.alignment() } }] } },
+                                                                                     { push: { storage: false,
+                                                                                               value: __compactRuntime.StateValue.newCell({ value: _descriptor_0.toValue(nullifier_0),
+                                                                                                                                            alignment: _descriptor_0.alignment() }).encode() } },
+                                                                                     'member',
+                                                                                     { popeq: { cached: true,
+                                                                                                result: undefined } }]).value);
+    if (hasExisting_0) {
+      const prevAppId_0 = _descriptor_0.fromValue(__compactRuntime.queryLedgerState(context,
+                                                                                    partialProofData,
+                                                                                    [
+                                                                                     { dup: { n: 0 } },
+                                                                                     { idx: { cached: false,
+                                                                                              pushPath: false,
+                                                                                              path: [
+                                                                                                     { tag: 'value',
+                                                                                                       value: { value: _descriptor_1.toValue(2n),
+                                                                                                                alignment: _descriptor_1.alignment() } }] } },
+                                                                                     { idx: { cached: false,
+                                                                                              pushPath: false,
+                                                                                              path: [
+                                                                                                     { tag: 'value',
+                                                                                                       value: { value: _descriptor_0.toValue(nullifier_0),
+                                                                                                                alignment: _descriptor_0.alignment() } }] } },
+                                                                                     { popeq: { cached: false,
+                                                                                                result: undefined } }]).value);
+      const prevRecord_0 = _descriptor_4.fromValue(__compactRuntime.queryLedgerState(context,
+                                                                                     partialProofData,
+                                                                                     [
+                                                                                      { dup: { n: 0 } },
+                                                                                      { idx: { cached: false,
+                                                                                               pushPath: false,
+                                                                                               path: [
+                                                                                                      { tag: 'value',
+                                                                                                        value: { value: _descriptor_1.toValue(1n),
+                                                                                                                 alignment: _descriptor_1.alignment() } }] } },
+                                                                                      { idx: { cached: false,
+                                                                                               pushPath: false,
+                                                                                               path: [
+                                                                                                      { tag: 'value',
+                                                                                                        value: { value: _descriptor_0.toValue(prevAppId_0),
+                                                                                                                 alignment: _descriptor_0.alignment() } }] } },
+                                                                                      { popeq: { cached: false,
+                                                                                                 result: undefined } }]).value);
+      const isInactive_0 = prevRecord_0.lifecycle !== 0;
+      const isExpired_0 = currentTime_0 >= prevRecord_0.expiresAt;
+      __compactRuntime.assert(isInactive_0 || isExpired_0,
+                              'Active qualification already exists for this tenant and listing');
+    }
     __compactRuntime.queryLedgerState(context,
                                       partialProofData,
                                       [
@@ -1007,13 +1075,14 @@ export class Contract {
                                                  value: __compactRuntime.StateValue.newCell({ value: _descriptor_0.toValue(nullifier_0),
                                                                                               alignment: _descriptor_0.alignment() }).encode() } },
                                        { push: { storage: true,
-                                                 value: __compactRuntime.StateValue.newNull().encode() } },
+                                                 value: __compactRuntime.StateValue.newCell({ value: _descriptor_0.toValue(applicationId_0),
+                                                                                              alignment: _descriptor_0.alignment() }).encode() } },
                                        { ins: { cached: false, n: 1 } },
                                        { ins: { cached: true, n: 1 } }]);
     const validityPeriod_0 = 2592000n;
     const proofExpiresAt_0 = ((t1) => {
                                if (t1 > 18446744073709551615n) {
-                                 throw new __compactRuntime.CompactError('qualification.compact line 244 char 36: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
+                                 throw new __compactRuntime.CompactError('qualification.compact line 280 char 36: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
                                }
                                return t1;
                              })(currentTime_0 + validityPeriod_0);
@@ -1172,7 +1241,7 @@ export class Contract {
     __compactRuntime.assert(record_0.lifecycle === 0,
                             'Only active qualification can be revoked');
     const tenantSalt_0 = this._getTenantSalt_0(context, partialProofData);
-    const callerCommitment_0 = this._persistentHash_3([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 116, 101, 110, 97, 110, 116, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+    const callerCommitment_0 = this._persistentHash_2([new Uint8Array([122, 107, 114, 101, 110, 116, 58, 116, 101, 110, 97, 110, 116, 58, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                                                        applicationId_0,
                                                        tenantSalt_0]);
     __compactRuntime.assert(this._equal_4(callerCommitment_0,
@@ -1288,7 +1357,7 @@ export function ledger(stateOrChargedState) {
         if (!(key_0.buffer instanceof ArrayBuffer && key_0.BYTES_PER_ELEMENT === 1 && key_0.length === 32)) {
           __compactRuntime.typeError('member',
                                      'argument 1',
-                                     'qualification.compact line 51 char 1',
+                                     'qualification.compact line 57 char 1',
                                      'Bytes<32>',
                                      key_0)
         }
@@ -1317,7 +1386,7 @@ export function ledger(stateOrChargedState) {
         if (!(key_0.buffer instanceof ArrayBuffer && key_0.BYTES_PER_ELEMENT === 1 && key_0.length === 32)) {
           __compactRuntime.typeError('lookup',
                                      'argument 1',
-                                     'qualification.compact line 51 char 1',
+                                     'qualification.compact line 57 char 1',
                                      'Bytes<32>',
                                      key_0)
         }
@@ -1397,7 +1466,7 @@ export function ledger(stateOrChargedState) {
         if (!(key_0.buffer instanceof ArrayBuffer && key_0.BYTES_PER_ELEMENT === 1 && key_0.length === 32)) {
           __compactRuntime.typeError('member',
                                      'argument 1',
-                                     'qualification.compact line 52 char 1',
+                                     'qualification.compact line 58 char 1',
                                      'Bytes<32>',
                                      key_0)
         }
@@ -1426,7 +1495,7 @@ export function ledger(stateOrChargedState) {
         if (!(key_0.buffer instanceof ArrayBuffer && key_0.BYTES_PER_ELEMENT === 1 && key_0.length === 32)) {
           __compactRuntime.typeError('lookup',
                                      'argument 1',
-                                     'qualification.compact line 52 char 1',
+                                     'qualification.compact line 58 char 1',
                                      'Bytes<32>',
                                      key_0)
         }
@@ -1457,7 +1526,7 @@ export function ledger(stateOrChargedState) {
         return self_0.asMap().keys().map(  (key) => {    const value = self_0.asMap().get(key).asCell();    return [      _descriptor_0.fromValue(key.value),      _descriptor_4.fromValue(value.value)    ];  })[Symbol.iterator]();
       }
     },
-    nullifierSet: {
+    activeNullifiers: {
       isEmpty(...args_0) {
         if (args_0.length !== 0) {
           throw new __compactRuntime.CompactError(`isEmpty: expected 0 arguments, received ${args_0.length}`);
@@ -1502,13 +1571,13 @@ export function ledger(stateOrChargedState) {
         if (args_0.length !== 1) {
           throw new __compactRuntime.CompactError(`member: expected 1 argument, received ${args_0.length}`);
         }
-        const elem_0 = args_0[0];
-        if (!(elem_0.buffer instanceof ArrayBuffer && elem_0.BYTES_PER_ELEMENT === 1 && elem_0.length === 32)) {
+        const key_0 = args_0[0];
+        if (!(key_0.buffer instanceof ArrayBuffer && key_0.BYTES_PER_ELEMENT === 1 && key_0.length === 32)) {
           __compactRuntime.typeError('member',
                                      'argument 1',
-                                     'qualification.compact line 53 char 1',
+                                     'qualification.compact line 59 char 1',
                                      'Bytes<32>',
-                                     elem_0)
+                                     key_0)
         }
         return _descriptor_5.fromValue(__compactRuntime.queryLedgerState(context,
                                                                          partialProofData,
@@ -1521,10 +1590,41 @@ export function ledger(stateOrChargedState) {
                                                                                             value: { value: _descriptor_1.toValue(2n),
                                                                                                      alignment: _descriptor_1.alignment() } }] } },
                                                                           { push: { storage: false,
-                                                                                    value: __compactRuntime.StateValue.newCell({ value: _descriptor_0.toValue(elem_0),
+                                                                                    value: __compactRuntime.StateValue.newCell({ value: _descriptor_0.toValue(key_0),
                                                                                                                                  alignment: _descriptor_0.alignment() }).encode() } },
                                                                           'member',
                                                                           { popeq: { cached: true,
+                                                                                     result: undefined } }]).value);
+      },
+      lookup(...args_0) {
+        if (args_0.length !== 1) {
+          throw new __compactRuntime.CompactError(`lookup: expected 1 argument, received ${args_0.length}`);
+        }
+        const key_0 = args_0[0];
+        if (!(key_0.buffer instanceof ArrayBuffer && key_0.BYTES_PER_ELEMENT === 1 && key_0.length === 32)) {
+          __compactRuntime.typeError('lookup',
+                                     'argument 1',
+                                     'qualification.compact line 59 char 1',
+                                     'Bytes<32>',
+                                     key_0)
+        }
+        return _descriptor_0.fromValue(__compactRuntime.queryLedgerState(context,
+                                                                         partialProofData,
+                                                                         [
+                                                                          { dup: { n: 0 } },
+                                                                          { idx: { cached: false,
+                                                                                   pushPath: false,
+                                                                                   path: [
+                                                                                          { tag: 'value',
+                                                                                            value: { value: _descriptor_1.toValue(2n),
+                                                                                                     alignment: _descriptor_1.alignment() } }] } },
+                                                                          { idx: { cached: false,
+                                                                                   pushPath: false,
+                                                                                   path: [
+                                                                                          { tag: 'value',
+                                                                                            value: { value: _descriptor_0.toValue(key_0),
+                                                                                                     alignment: _descriptor_0.alignment() } }] } },
+                                                                          { popeq: { cached: false,
                                                                                      result: undefined } }]).value);
       },
       [Symbol.iterator](...args_0) {
@@ -1532,7 +1632,7 @@ export function ledger(stateOrChargedState) {
           throw new __compactRuntime.CompactError(`iter: expected 0 arguments, received ${args_0.length}`);
         }
         const self_0 = state.asArray()[2];
-        return self_0.asMap().keys().map((elem) => _descriptor_0.fromValue(elem.value))[Symbol.iterator]();
+        return self_0.asMap().keys().map(  (key) => {    const value = self_0.asMap().get(key).asCell();    return [      _descriptor_0.fromValue(key.value),      _descriptor_0.fromValue(value.value)    ];  })[Symbol.iterator]();
       }
     },
     get contractAdmin() {
@@ -1574,13 +1674,118 @@ const _dummyContract = new Contract({
   getTenantSalt: (...args) => undefined,
   getCallerSecret: (...args) => undefined
 });
-export const pureCircuits = {};
+export const pureCircuits = {
+  computeCriteriaHash: (...args_0) => {
+    if (args_0.length !== 11) {
+      throw new __compactRuntime.CompactError(`computeCriteriaHash: expected 11 arguments (as invoked from Typescript), received ${args_0.length}`);
+    }
+    const listingId_0 = args_0[0];
+    const version_0 = args_0[1];
+    const rent_0 = args_0[2];
+    const minInc_0 = args_0[3];
+    const maxRatio_0 = args_0[4];
+    const minCred_0 = args_0[5];
+    const requireCleanBackground_0 = args_0[6];
+    const minEmploymentMonths_0 = args_0[7];
+    const primeMaxRentToIncomeRatioBps_0 = args_0[8];
+    const primeMinCreditScore_0 = args_0[9];
+    const active_0 = args_0[10];
+    if (!(listingId_0.buffer instanceof ArrayBuffer && listingId_0.BYTES_PER_ELEMENT === 1 && listingId_0.length === 32)) {
+      __compactRuntime.typeError('computeCriteriaHash',
+                                 'argument 1',
+                                 'qualification.compact line 93 char 1',
+                                 'Bytes<32>',
+                                 listingId_0)
+    }
+    if (!(typeof(version_0) === 'bigint' && version_0 >= 0n && version_0 <= 4294967295n)) {
+      __compactRuntime.typeError('computeCriteriaHash',
+                                 'argument 2',
+                                 'qualification.compact line 93 char 1',
+                                 'Uint<0..4294967296>',
+                                 version_0)
+    }
+    if (!(typeof(rent_0) === 'bigint' && rent_0 >= 0n && rent_0 <= 18446744073709551615n)) {
+      __compactRuntime.typeError('computeCriteriaHash',
+                                 'argument 3',
+                                 'qualification.compact line 93 char 1',
+                                 'Uint<0..18446744073709551616>',
+                                 rent_0)
+    }
+    if (!(typeof(minInc_0) === 'bigint' && minInc_0 >= 0n && minInc_0 <= 18446744073709551615n)) {
+      __compactRuntime.typeError('computeCriteriaHash',
+                                 'argument 4',
+                                 'qualification.compact line 93 char 1',
+                                 'Uint<0..18446744073709551616>',
+                                 minInc_0)
+    }
+    if (!(typeof(maxRatio_0) === 'bigint' && maxRatio_0 >= 0n && maxRatio_0 <= 65535n)) {
+      __compactRuntime.typeError('computeCriteriaHash',
+                                 'argument 5',
+                                 'qualification.compact line 93 char 1',
+                                 'Uint<0..65536>',
+                                 maxRatio_0)
+    }
+    if (!(typeof(minCred_0) === 'bigint' && minCred_0 >= 0n && minCred_0 <= 65535n)) {
+      __compactRuntime.typeError('computeCriteriaHash',
+                                 'argument 6',
+                                 'qualification.compact line 93 char 1',
+                                 'Uint<0..65536>',
+                                 minCred_0)
+    }
+    if (!(typeof(requireCleanBackground_0) === 'boolean')) {
+      __compactRuntime.typeError('computeCriteriaHash',
+                                 'argument 7',
+                                 'qualification.compact line 93 char 1',
+                                 'Boolean',
+                                 requireCleanBackground_0)
+    }
+    if (!(typeof(minEmploymentMonths_0) === 'bigint' && minEmploymentMonths_0 >= 0n && minEmploymentMonths_0 <= 65535n)) {
+      __compactRuntime.typeError('computeCriteriaHash',
+                                 'argument 8',
+                                 'qualification.compact line 93 char 1',
+                                 'Uint<0..65536>',
+                                 minEmploymentMonths_0)
+    }
+    if (!(typeof(primeMaxRentToIncomeRatioBps_0) === 'bigint' && primeMaxRentToIncomeRatioBps_0 >= 0n && primeMaxRentToIncomeRatioBps_0 <= 65535n)) {
+      __compactRuntime.typeError('computeCriteriaHash',
+                                 'argument 9',
+                                 'qualification.compact line 93 char 1',
+                                 'Uint<0..65536>',
+                                 primeMaxRentToIncomeRatioBps_0)
+    }
+    if (!(typeof(primeMinCreditScore_0) === 'bigint' && primeMinCreditScore_0 >= 0n && primeMinCreditScore_0 <= 65535n)) {
+      __compactRuntime.typeError('computeCriteriaHash',
+                                 'argument 10',
+                                 'qualification.compact line 93 char 1',
+                                 'Uint<0..65536>',
+                                 primeMinCreditScore_0)
+    }
+    if (!(typeof(active_0) === 'boolean')) {
+      __compactRuntime.typeError('computeCriteriaHash',
+                                 'argument 11',
+                                 'qualification.compact line 93 char 1',
+                                 'Boolean',
+                                 active_0)
+    }
+    return _dummyContract._computeCriteriaHash_0(listingId_0,
+                                                 version_0,
+                                                 rent_0,
+                                                 minInc_0,
+                                                 maxRatio_0,
+                                                 minCred_0,
+                                                 requireCleanBackground_0,
+                                                 minEmploymentMonths_0,
+                                                 primeMaxRentToIncomeRatioBps_0,
+                                                 primeMinCreditScore_0,
+                                                 active_0);
+  }
+};
 export const contractReferenceLocations =
   { tag: 'publicLedgerArray', indices: { } };
 export const expectedVk = {
   'consumeQualification': '0438858eeb6c1a48a07d61b3684a93c59871f16b6765bda5a127b8793fa9ec66',
-  'proveQualification': 'ab12e8719604a3ab8302d7385a2bcdb794ca338c20587c29ebd970d8b3682859',
-  'registerListingCriteria': '54e1f1075975cc5c7564bea88722ed4b77e12d08a9e39d5a434587bdf41e9c87',
+  'proveQualification': 'f8179917c3a085ca13f0896c144525af0c4c8f0edb7a5bf4fea928bd4c43c1f8',
+  'registerListingCriteria': '3a526bbb5812d04533480846b2d4e34dd22a7cfa61b7e76d09b682facd497483',
   'revokeQualification': 'addf49462731f6a145fc00857b4453929fb35a0202887355ff63f443859e4b9e',
   'setPaused': '52890da8ec90edf6e022feff63ade315fc1ae3d9899a0bf2f76c55b3b3ddc43c',
 };

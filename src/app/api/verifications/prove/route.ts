@@ -1,7 +1,22 @@
+import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { executeMidnightQualificationProof, checkDevnetHealth } from '@/midnight/zk';
+import {
+  executeMidnightQualificationProof,
+  checkDevnetHealth,
+  computeListingCriteriaHash,
+  queryOnChainApplicationRecord,
+  DEFAULT_CONFIG,
+} from '@/midnight/zk';
+import {
+  assertApplicationTransition,
+  assertVerificationTransition,
+  InvalidStateTransitionError,
+  type ApplicationStatus,
+  type VerificationStatus,
+} from '@/lib/lifecycle';
+import { applyRateLimit } from '@/lib/rate-limit';
 import { z } from 'zod';
 
 const proveRequestSchema = z.object({
@@ -13,6 +28,7 @@ const proveRequestSchema = z.object({
       tier: z.number().int().min(0).max(2).optional().default(0),
       nullifier: z.string().min(10, 'Nullifier required'),
       criteriaHash: z.string().min(8, 'Criteria hash required'),
+      tenantCommitment: z.string().min(10, 'Tenant commitment required').optional(),
       midnightTxHash: z.string().min(10, 'Transaction hash required'),
       proofHash: z.string().min(10, 'Proof hash required'),
       circuitId: z.string().optional().default('proveQualification'),
@@ -35,6 +51,9 @@ const proveRequestSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const rateLimitResponse = applyRateLimit(req, { limit: 10, windowMs: 60000, prefix: 'prove' });
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const session = await auth();
 
@@ -83,11 +102,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Calculate expected criteria hash from listing parameters
+    const expectedCriteriaHash = application.property.criteriaHash || computeListingCriteriaHash(
+      application.property.id,
+      {
+        monthlyRent: application.property.price,
+        minMonthlyIncome: Math.round(application.property.minIncome / 12),
+        maxRentToIncomeRatioBps: application.property.maxRentToIncomeRatioBps,
+        minCreditScore: application.property.minCreditScore,
+        minEmploymentMonths: application.property.minEmploymentMonths,
+        requireCleanBackground: application.property.requireBackground,
+        primeMaxRentToIncomeRatioBps: application.property.primeMaxRentToIncomeRatioBps,
+        primeMinCreditScore: application.property.primeMinCreditScore,
+        criteriaVersion: application.property.criteriaVersion,
+      }
+    );
+
     let finalProofResult: {
       isEligible: boolean;
       tier: number;
       nullifier: string;
       criteriaHash: string;
+      tenantCommitment: string;
       midnightTxHash: string;
       proofHash: string;
       circuitId: string;
@@ -95,42 +131,72 @@ export async function POST(req: NextRequest) {
       blockHeight: number;
       provingTimeMs: number;
       mode: 'live_devnet' | 'sandbox_simulation';
+      isSimulation: boolean;
       requirements?: Record<string, unknown>;
       zkMetrics?: Record<string, unknown>;
     };
 
     if (clientProof) {
-      // 1. Live Devnet Verification Check
+      const isSimulation = clientProof.mode === 'sandbox_simulation';
+
+      // 1. Strict Criteria Hash Verification (Anti-Forgery)
+      if (clientProof.criteriaHash !== expectedCriteriaHash) {
+        return NextResponse.json(
+          {
+            error: 'Proof rejected: Criteria hash mismatch. The proof was generated against outdated or forged listing rules.',
+            expected: expectedCriteriaHash,
+            received: clientProof.criteriaHash,
+          },
+          { status: 400 }
+        );
+      }
+
+      // 2. Validate Tenant Commitment format
+      const tenantCommitment = clientProof.tenantCommitment || `tc_${createHash('sha256').update(application.id).digest('hex').slice(0, 32)}`;
+
+      // 3. Live Devnet Mode Checks
       if (clientProof.mode === 'live_devnet') {
         const health = await checkDevnetHealth();
         if (!health.ready) {
+          // Hard rule: No silent fallback to simulation when live mode is requested
           return NextResponse.json(
-            { error: 'Live proof verification failed: Midnight devnet node or proof-server is offline' },
+            {
+              error: 'Live proof verification failed: Midnight devnet node or proof-server is offline. Cannot verify on-chain evidence.',
+              proofServerOnline: health.proofServer,
+              nodeOnline: health.node,
+            },
             { status: 503 }
           );
         }
-        // In live devnet mode, check criteria hash binding
-        if (application.property.criteriaHash && clientProof.criteriaHash !== application.property.criteriaHash) {
-          return NextResponse.json(
-            { error: 'Proof rejected: Proof criteria hash does not match current listing requirements' },
-            { status: 400 }
-          );
+
+        // Live devnet indexer query check
+        const onChainRecord = await queryOnChainApplicationRecord(
+          DEFAULT_CONFIG.contractAddress,
+          application.id
+        );
+
+        if (onChainRecord && onChainRecord.found) {
+          if (onChainRecord.tenantCommitment && onChainRecord.tenantCommitment !== tenantCommitment) {
+            return NextResponse.json(
+              { error: 'Proof rejected: On-chain tenant commitment does not match submitted proof (anti-squatting violation)' },
+              { status: 400 }
+            );
+          }
+          if (onChainRecord.tier !== undefined && onChainRecord.tier !== clientProof.tier) {
+            return NextResponse.json(
+              { error: 'Proof rejected: Client asserted tier does not match on-chain verified tier' },
+              { status: 400 }
+            );
+          }
         }
       }
 
-      // 2. Simulation Mode Checks
+      // 4. Simulation Mode Checks
       if (clientProof.mode === 'sandbox_simulation') {
         if (process.env.ALLOW_SIMULATED_PROOFS === 'false') {
           return NextResponse.json(
             { error: 'Simulated proofs are disabled in this environment' },
             { status: 403 }
-          );
-        }
-        // Ensure criteria hash is bound
-        if (application.property.criteriaHash && clientProof.criteriaHash !== application.property.criteriaHash) {
-          return NextResponse.json(
-            { error: 'Proof rejected: Criteria hash mismatch' },
-            { status: 400 }
           );
         }
       }
@@ -140,6 +206,7 @@ export async function POST(req: NextRequest) {
         tier: clientProof.tier ?? 0,
         nullifier: clientProof.nullifier,
         criteriaHash: clientProof.criteriaHash,
+        tenantCommitment,
         midnightTxHash: clientProof.midnightTxHash,
         proofHash: clientProof.proofHash,
         circuitId: clientProof.circuitId,
@@ -147,6 +214,7 @@ export async function POST(req: NextRequest) {
         blockHeight: clientProof.blockHeight,
         provingTimeMs: clientProof.provingTimeMs,
         mode: clientProof.mode,
+        isSimulation,
         requirements: clientProof.requirements,
         zkMetrics: clientProof.zkMetrics,
       };
@@ -160,9 +228,9 @@ export async function POST(req: NextRequest) {
         minCreditScore: application.property.minCreditScore,
         minEmploymentMonths: application.property.minEmploymentMonths,
         requireCleanBackground: application.property.requireBackground,
-        primeMinIncomeRatioBps: application.property.primeMinIncomeRatioBps,
+        primeMaxRentToIncomeRatioBps: application.property.primeMaxRentToIncomeRatioBps,
         primeMinCreditScore: application.property.primeMinCreditScore,
-        criteriaHash: application.property.criteriaHash || undefined,
+        criteriaHash: expectedCriteriaHash,
       };
 
       const result = await executeMidnightQualificationProof(
@@ -179,6 +247,7 @@ export async function POST(req: NextRequest) {
         tier: result.tier,
         nullifier: result.nullifier,
         criteriaHash: result.criteriaHash,
+        tenantCommitment: `tc_${createHash('sha256').update(application.id).digest('hex').slice(0, 32)}`,
         midnightTxHash: result.midnightTxHash,
         proofHash: result.proofHash,
         circuitId: result.circuitId,
@@ -186,6 +255,7 @@ export async function POST(req: NextRequest) {
         blockHeight: result.blockHeight,
         provingTimeMs: result.provingTimeMs,
         mode: result.mode,
+        isSimulation: result.mode === 'sandbox_simulation',
         requirements: result.requirements,
         zkMetrics: result.zkMetrics as unknown as Record<string, unknown>,
       };
@@ -196,11 +266,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Anti-Replay: Nullifier consumption check
+    // 5. Anti-Replay: Nullifier consumption check
     const existingNullifier = await prisma.verification.findFirst({
       where: {
         nullifier: finalProofResult.nullifier,
-        status: 'VERIFIED',
+        status: { in: ['VERIFIED', 'SIMULATED'] },
         lifecycle: 'Active',
         expiresAt: { gt: new Date() },
         applicationId: { not: applicationId },
@@ -209,7 +279,7 @@ export async function POST(req: NextRequest) {
 
     if (existingNullifier) {
       return NextResponse.json(
-        { error: 'Proof rejected: Nullifier has already been consumed for another application (anti-replay check failed)' },
+        { error: 'Proof rejected: Nullifier has already been registered for an active application (anti-replay check failed)' },
         { status: 409 }
       );
     }
@@ -217,12 +287,34 @@ export async function POST(req: NextRequest) {
     const validityPeriodMs = 30 * 24 * 3600 * 1000;
     const expiresAt = new Date(Date.now() + validityPeriodMs);
 
+    // State Machine Target Status Determination
+    const targetStatus = finalProofResult.isEligible ? 'ZK_VERIFIED' : 'ZK_REJECTED';
+    const targetVerificationStatus = finalProofResult.isEligible
+      ? (finalProofResult.isSimulation ? 'SIMULATED' : 'VERIFIED')
+      : 'FAILED';
+
+    // Validate state transitions with canonical state machine
+    try {
+      assertApplicationTransition(application.status as ApplicationStatus, targetStatus as ApplicationStatus);
+      assertVerificationTransition(
+        application.verificationStatus as VerificationStatus,
+        targetVerificationStatus as VerificationStatus
+      );
+    } catch (err) {
+      if (err instanceof InvalidStateTransitionError) {
+        return NextResponse.json({ error: err.message }, { status: 400 });
+      }
+      throw err;
+    }
+
     // Persist verification in database
     const verification = await prisma.verification.create({
       data: {
         applicationId,
-        status: finalProofResult.isEligible ? 'VERIFIED' : 'FAILED',
+        status: targetVerificationStatus,
         isEligible: finalProofResult.isEligible,
+        isSimulation: finalProofResult.isSimulation,
+        tenantCommitment: finalProofResult.tenantCommitment,
         tier: finalProofResult.tier,
         nullifier: finalProofResult.nullifier,
         criteriaHash: finalProofResult.criteriaHash,
@@ -239,16 +331,31 @@ export async function POST(req: NextRequest) {
     });
 
     // Update Application status
-    const targetStatus = finalProofResult.isEligible ? 'ZK_VERIFIED' : 'ZK_REJECTED';
-    const targetVerificationStatus = finalProofResult.isEligible ? 'VERIFIED' : 'FAILED';
-
     const updatedApp = await prisma.application.update({
       where: { id: applicationId },
       data: {
         status: targetStatus,
         verificationStatus: targetVerificationStatus,
+        isSimulation: finalProofResult.isSimulation,
       },
     });
+
+    // Create DB-backed notification for the landlord
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: application.property.landlordId,
+          title: 'New Qualification Verified',
+          message: `Applicant verified qualification for "${application.property.title}" (${
+            finalProofResult.isSimulation ? 'Simulated Sandbox' : 'On-Chain Midnight Proof'
+          }, Tier: ${finalProofResult.tier === 1 ? 'Prime' : 'Standard'}).`,
+          type: 'SUCCESS',
+          link: `/properties/${application.propertyId}/applications`,
+        },
+      });
+    } catch (notifyErr) {
+      console.warn('Failed to dispatch landlord notification:', notifyErr);
+    }
 
     return NextResponse.json({
       status: 'verified',

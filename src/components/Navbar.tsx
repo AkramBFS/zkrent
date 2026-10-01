@@ -19,6 +19,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useMidnightWallet } from '@/hooks/useMidnightWallet';
+import { NotificationBell } from '@/components/NotificationBell';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -125,6 +126,9 @@ export function Navbar() {
                 <span className="text-white/70 hover:text-white">Connect Wallet</span>
               )}
             </Link>
+
+            {/* In-App Notifications Bell */}
+            <NotificationBell />
 
             {/* Fast Role Switcher */}
             <div className="relative">
