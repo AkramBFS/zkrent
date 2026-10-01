@@ -11,20 +11,20 @@ import {
   Building2,
   Home,
   UserCheck,
-  FileCheck,
   PlusCircle,
   Menu,
   X,
   RotateCcw,
-  Sparkles,
-  Settings,
   ChevronDown,
+  Wallet,
 } from 'lucide-react';
+import { useMidnightWallet } from '@/hooks/useMidnightWallet';
 
 export function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { activeRole, setActiveRole, resetDemoData, applications, currentUser } = useZkRent();
+  const wallet = useMidnightWallet();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -97,7 +97,25 @@ export function Navbar() {
             <span className="hidden md:inline text-[#908682]">Zero raw financial docs shared</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {/* Midnight Wallet Indicator */}
+            <Link
+              href="/tenant/settings"
+              className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#3D3531] hover:bg-[#3D3531]/80 text-[11px] font-mono border border-[#00A8E8]/30 transition-colors cursor-pointer"
+              title="Manage Midnight Wallet & Network"
+            >
+              <Wallet className="w-3 h-3 text-[#00A8E8]" />
+              {wallet.isConnected ? (
+                <span>
+                  <span className="text-[#00A8E8]">{wallet.walletType === 'lace_extension' ? 'Lace: ' : 'Demo: '}</span>
+                  <span className="text-[#E5E0D8]">{wallet.address?.slice(0, 6)}...{wallet.address?.slice(-4)}</span>
+                  <span className="text-white/40 ml-1">({wallet.balance.tStar} tSTAR)</span>
+                </span>
+              ) : (
+                <span className="text-white/70 hover:text-white">Connect Wallet</span>
+              )}
+            </Link>
+
             {/* Fast Role Switcher */}
             <div className="relative">
               <motion.button
@@ -250,6 +268,7 @@ export function Navbar() {
                       href: '/tenant/verification',
                       label: 'Proof Vault',
                       isActive: pathname.startsWith('/tenant/verification'),
+                      badge: verifiedCount > 0 ? verifiedCount : null,
                     },
                     {
                       href: '/properties',

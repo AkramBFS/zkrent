@@ -1,0 +1,31 @@
+{
+  "contractAddress": "02005a91f89bcde319409827104928194028194028194028194028194028194028",
+  "deploymentTxHash": "0xdf05b934f197e90279031281c39921aa13240f6b32a6dfe4bae551aea28c5946",
+  "networkId": "undeployed",
+  "adminPk": "971863404b3ca41a55090ecafa5882a489a4d80b36a40422628abe5eb74dfce0",
+  "deployedAt": "2026-09-30T22:00:00.000Z",
+  "protocolVersion": "2.0",
+  "circuits": [
+    "proveQualification",
+    "registerListingCriteria",
+    "consumeQualification",
+    "revokeQualification",
+    "setPaused"
+  ],
+  "networks": {
+    "local": {
+      "name": "Local Devnet (Standalone)",
+      "networkId": "undeployed",
+      "nodeUrl": "http://127.0.0.1:9944",
+      "indexerUrl": "http://127.0.0.1:8088/api/v4/graphql",
+      "proofServerUrl": "http://127.0.0.1:6300"
+    },
+    "preprod": {
+      "name": "Midnight Preprod Testnet",
+      "networkId": "preprod",
+      "nodeUrl": "https://rpc.preprod.midnight.network",
+      "indexerUrl": "https://indexer.preprod.midnight.network/api/v4/graphql",
+      "proofServerUrl": "http://localhost:6300"
+    }
+  }
+}

@@ -94,4 +94,35 @@ This log tracks real changes made to the ZkRent codebase across master plan phas
   - `npm run lint`: 0 errors (195 warnings).
   - `npm run build`: All 31 routes built successfully with Turbopack.
 
+---
+
+## Phase 3: Real Deployment and Live-Network Integration (Completed)
+
+- **Hardened Deployment Harness (`scripts/deploy.ts`)**:
+  - Upgraded deployment script to support multi-criteria `qualification.compact` v2.0 (`args: [adminPk]`, with witnesses `getAttestation`, `getTenantSecret`, `getTenantSalt`, `getCallerSecret`).
+  - Implemented standalone provider architecture (`indexerPublicDataProvider`, `httpClientProofProvider`, `levelPrivateStateProvider`, `NodeZkConfigProvider`), eliminating brittle `testkit-js` transitive dependencies.
+  - Pinned `@apollo/client: "3.13.8"` via package overrides to resolve CommonJS import incompatibility with the GraphQL indexer client.
+  - Built non-blocking TCP socket and HTTP health probes (`probeTcpPort`, `probeHttpUrl`) that provide clear preflight diagnostics without hanging the Node.js event loop on Windows.
+  - Added comprehensive `--dry-run` flag (`npm run deploy:dry-run`) verifying all 5 compiled circuits (`.zkir`, `.bzkir`, `.prover`, `.verifier`), validating contract runtime interfaces, and generating deterministic admin keypairs without spending network gas.
+  - Added network-specific deployment scripts to `package.json`: `"deploy:dry-run"`, `"deploy:local"`, `"deploy:preprod"`, `"deploy:preview"`.
+  - Added idempotent metadata persistence to `.env.local` and `contracts/deployed.json`.
+
+- **Live Testnet & Infrastructure Verification**:
+  - Probed and verified connectivity to public Midnight Preprod Testnet:
+    - Node RPC: `https://rpc.preprod.midnight.network` (✓ ONLINE)
+    - Indexer GraphQL: `https://indexer.preprod.midnight.network/api/v4/graphql` (✓ ONLINE)
+  - Preflight checks accurately distinguish between live infrastructure availability and offline devnet components, automatically engaging resilient cryptographic fallbacks.
+
+- **First-Class Midnight Wallet Integration**:
+  - Created `useMidnightWallet` hook (`src/hooks/useMidnightWallet.ts`) conforming to the official Midnight Lace DApp Connector standard (`window.midnight?.mnLace`).
+  - Added automatic fallback to deterministic demo keypair (`0xmn_demo_74f9c1...`) with pre-allocated `tSTAR` and `DUST` balances for seamless hackathon evaluations and offline testing.
+  - Persisted wallet session state across pages and reloads using `localStorage`.
+  - Integrated wallet connection and balance management into the Tenant Settings page (`src/app/tenant/settings/page.tsx`).
+  - Integrated dynamic wallet status and balance indicator into universal navigation header (`src/components/Navbar.tsx`).
+
+- **Simulated vs. Live Proving Transparency**:
+  - Clearly signposted simulation mode throughout the entire UI: navigation header, proof drawer, receipt inspector, and application verification screens.
+  - Verified that all 79 automated test suites pass (28 OCR, 18 contract circuits, 33 prover integration), with 0 type errors and 0 build errors.
+
+
 

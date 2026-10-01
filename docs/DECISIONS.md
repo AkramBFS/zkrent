@@ -71,4 +71,32 @@ This document records architectural decisions made during the evolution of ZkRen
   1. *Anti-Replay Nullifier*: Derive deterministic nullifier `persistentHash(["zkrent:null:", tenantSecret, listingId])` inserted into on-chain `Set<Bytes<32>>`. Reusing the same credentials for the same listing fails constraint checks.
   2. *Anti-Squatting Tenant Commitment*: Bind application ID to a secret tenant salt: `persistentHash(["zkrent:tenant:", applicationId, tenantSalt])`. The circuit asserts that the credential attestation commitment strictly matches this bound commitment, preventing impersonators from claiming another tenant's application.
 - **Consequences**: Cryptographically robust anti-replay and application squatting defenses without compromising public landlord queryability.
+---
 
+## ADR 007: DApp Connector & Deterministic Wallet Fallback Architecture
+
+- **Status**: Accepted
+- **Date**: 2026-10-01
+- **Context**: Tenants need to sign transactions, submit zero-knowledge proofs, and pay network gas (`tSTAR`) and shielded fees (`DUST`). In local hackathon presentations, CI, and user testing environments, physical browser extension wallets (Midnight Lace) may not be installed or funded.
+- **Decision**:
+  1. Primary Provider: Official Midnight DApp Connector specification (`window.midnight?.mnLace`). If available, query accounts, balances, and request cryptographic signing.
+  2. Fallback Provider: Built-in deterministic demo keypair (`0xmn_demo_74f9c1...`) with pre-allocated demo `tSTAR` and `DUST` balances.
+  3. Client-Side Persistence: Store wallet connection state in browser local storage (`zkrent_midnight_wallet_v2`) to maintain consistent state across navigation.
+- **Consequences**: Enables immediate usability out-of-the-box without forcing judges or reviewers to install unreleased browser extensions, while remaining 100% compliant with the official Midnight DApp Connector standard when Lace is present.
+
+---
+
+## ADR 008: Standalone Provider Composition for Deployment and Contract Proving
+
+- **Status**: Accepted
+- **Date**: 2026-10-01
+- **Context**: The legacy deployment harness relied on `@midnight-ntwrk/testkit-js` which imported incompatible `@apollo/client` v4 modules, resulting in broken CommonJS entrypoint crashes (`Error: Cannot find module '@apollo/client/legacyEntryPoints/link/core/core.cjs'`).
+- **Decision**:
+  1. Bypass `testkit-js` and directly instantiate the official standalone providers:
+     - `@midnight-ntwrk/midnight-js-indexer-public-data-provider`
+     - `@midnight-ntwrk/midnight-js-http-client-proof-provider`
+     - `@midnight-ntwrk/midnight-js-level-private-state-provider`
+     - `@midnight-ntwrk/midnight-js-node-zk-config-provider`
+  2. Pin `@apollo/client: "3.13.8"` via package overrides to guarantee stable GraphQL client execution across Node and Webpack/Turbopack environments.
+  3. Implement non-blocking TCP socket probing (`net.Socket`) with immediate socket destruction for network preflight checks to prevent Node process hangs on Windows.
+- **Consequences**: Clean, resilient deployment pipeline with zero dangling dependencies or event-loop stalls.

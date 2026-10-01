@@ -16,11 +16,15 @@
     "db:seed": "node scripts/seed.js",
     "db:generate": "prisma generate",
     "compact:compile": "wsl bash -c \"cd /mnt/c/Users/akram/Desktop/zkren/midnighthack/zkrent && compact compile contracts/qualification.compact contracts/managed/qualification\"",
-    "deploy:contract": "node node_modules/tsx/dist/cli.mjs scripts/deploy.ts"
+    "deploy:contract": "node node_modules/tsx/dist/cli.mjs scripts/deploy.ts",
+    "deploy:dry-run": "node node_modules/tsx/dist/cli.mjs scripts/deploy.ts --dry-run",
+    "deploy:local": "node node_modules/tsx/dist/cli.mjs scripts/deploy.ts --network local",
+    "deploy:preprod": "node node_modules/tsx/dist/cli.mjs scripts/deploy.ts --network preprod",
+    "deploy:preview": "node node_modules/tsx/dist/cli.mjs scripts/deploy.ts --network preview"
   },
   "dependencies": {
     "@midnight-ntwrk/compact-runtime": "0.19.0",
-    "@midnight-ntwrk/ledger-v8": "^8.0.3",
+    "@midnight-ntwrk/ledger-v8": "8.0.3",
     "@midnight-ntwrk/midnight-js-contracts": "4.0.4",
     "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.0.4",
     "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.0.4",
@@ -58,7 +62,8 @@
   "overrides": {
     "@midnight-ntwrk/ledger-v8": "8.0.3",
     "@midnight-ntwrk/compact-runtime": "0.19.0",
-    "@midnight-ntwrk/wallet-sdk": "^1.2.0"
+    "@midnight-ntwrk/wallet-sdk": "^1.2.0",
+    "@apollo/client": "3.13.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

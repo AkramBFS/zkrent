@@ -48,6 +48,7 @@ next-env.d.ts
 # Compact compiler artifacts
 contracts/**/*.bzk
 contracts/**/*.json
+!contracts/deployed.json
 !contracts/**/*.compact
 
 #Agents

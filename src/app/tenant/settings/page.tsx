@@ -15,10 +15,14 @@ import {
   Sparkles,
   Smartphone,
   LogOut,
+  ExternalLink,
+  RefreshCw,
 } from 'lucide-react';
+import { useMidnightWallet } from '@/hooks/useMidnightWallet';
 
 export default function TenantSettingsPage() {
   const { currentUser, resetDemoData } = useZkRent();
+  const wallet = useMidnightWallet();
   const [saved, setSaved] = useState(false);
   const prefersReduced = useReducedMotion();
 
@@ -121,23 +125,87 @@ export default function TenantSettingsPage() {
               <div className="flex items-center gap-2.5 pb-3 border-b border-[#231F20]/10">
                 <Wallet className="w-5 h-5 text-[#4A6B32]" />
                 <h3 className="font-serif font-bold text-lg text-[#231F20]">
-                  Midnight Network Privacy & Prover State
+                  Midnight Network Wallet & Prover State
                 </h3>
               </div>
 
+              {/* Connected Wallet Box */}
               <div className="p-4 rounded-lg bg-[#231F20] text-[#E5E0D8] space-y-3 font-mono text-xs border border-[#00A8E8]/30">
                 <div className="flex items-center justify-between">
-                  <span className="text-[#00A8E8] font-bold">Connected Midnight Wallet</span>
-                  <span className="px-2 py-0.5 rounded bg-[#4A6B32]/40 text-[#00A8E8] text-[10px]">
-                    Active on Testnet
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#00A8E8] font-bold">Midnight Shielded Wallet</span>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                        wallet.walletType === 'lace_extension' && wallet.isConnected
+                          ? 'bg-purple-900/60 text-purple-200 border-purple-400'
+                          : 'bg-[#4A6B32]/40 text-[#00A8E8] border-[#00A8E8]/30'
+                      }`}
+                    >
+                      {wallet.walletType === 'lace_extension' && wallet.isConnected
+                        ? 'Lace Extension'
+                        : 'Demo Keypair (Sandbox)'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-[#908682]">
+                    {wallet.network}
                   </span>
                 </div>
-                <div className="text-[11px] text-[#908682] break-all">
-                  {currentUser.midnightAddress}
+
+                <div className="text-[11px] text-white/90 break-all bg-black/30 p-2 rounded border border-white/5">
+                  {wallet.address || currentUser.midnightAddress}
                 </div>
-                <div className="flex items-center justify-between text-xs text-white pt-2 border-t border-white/10">
-                  <span>Prover Engine: Halo2 WebAssembly (Local)</span>
-                  <span className="text-[#B86A36]">Zero Server Uploads</span>
+
+                {/* Balances */}
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="p-2 rounded bg-white/5 border border-white/10">
+                    <span className="text-[10px] text-[#908682] block">tSTAR Balance (Gas)</span>
+                    <span className="text-sm font-bold text-[#00A8E8]">{wallet.balance.tStar} tSTAR</span>
+                  </div>
+                  <div className="p-2 rounded bg-white/5 border border-white/10">
+                    <span className="text-[10px] text-[#908682] block">Shielded DUST</span>
+                    <span className="text-sm font-bold text-amber-400">{wallet.balance.dust} DUST</span>
+                  </div>
+                </div>
+
+                {/* Connection Controls */}
+                <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                  <div className="flex items-center gap-2">
+                    {wallet.isLaceAvailable ? (
+                      <motion.button
+                        whileHover={prefersReduced ? undefined : { scale: 1.02 }}
+                        whileTap={prefersReduced ? undefined : { scale: 0.98 }}
+                        type="button"
+                        onClick={() => wallet.connectLace()}
+                        disabled={wallet.isLoading}
+                        className="px-3 py-1.5 rounded bg-purple-700 hover:bg-purple-600 text-white text-[11px] font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>{wallet.isConnected && wallet.walletType === 'lace_extension' ? 'Connected to Lace' : 'Connect Lace Wallet'}</span>
+                      </motion.button>
+                    ) : (
+                      <a
+                        href="https://docs.midnight.network"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-[#00A8E8] hover:underline flex items-center gap-1"
+                      >
+                        <span>Install Lace Extension</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+
+                    <motion.button
+                      whileHover={prefersReduced ? undefined : { scale: 1.02 }}
+                      whileTap={prefersReduced ? undefined : { scale: 0.98 }}
+                      type="button"
+                      onClick={() => wallet.connectDemo()}
+                      className="px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-[#E5E0D8] text-[11px] transition-colors cursor-pointer"
+                    >
+                      Reset to Demo Key
+                    </motion.button>
+                  </div>
+
+                  <span className="text-[10px] text-[#908682]">Zero Server Uploads</span>
                 </div>
               </div>
 
@@ -148,7 +216,7 @@ export default function TenantSettingsPage() {
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" defaultChecked className="rounded text-[#4A6B32] focus:ring-[#4A6B32]" />
-                  <span>Require 2FA biometric confirmation before releasing lease identity reveal</span>
+                  <span>Require cryptographic signature confirmation before releasing identity reveal</span>
                 </label>
               </div>
             </MotionCard>
