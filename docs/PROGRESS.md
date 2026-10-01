@@ -212,6 +212,43 @@ This log tracks real changes made to the ZkRent codebase across master plan phas
   - `npm run lint`: 0 errors (178 stylistic warnings).
   - `npm run build`: Turbopack production build succeeded across all 34 static and dynamic routes.
 
+---
+
+## Phase 6: Repo Cleanup and Canonical Documentation (Completed)
+
+- **Foreign & Stale Material Pruned**:
+  - Deleted legacy Latch/MOAT project documentation (`contract.md`, `deployment.md`, `deploy-undeployed.md`, `docker.md`).
+  - Removed foreign skill stubs (`SKILL.md`, `CLAUDE.md`, `docs/midnight-skills`).
+  - Removed all obsolete scratch scripts, probe artifacts, and redundant compose configurations.
+- **Canonical Architecture & Engineering Documentation Produced**:
+  - `README.md`: Executive overview, 3-minute quickstart, architecture topology, Compact contract overview, privacy matrices, and automated test pyramid.
+  - `LICENSE`: MIT License.
+  - `CHANGELOG.md`: Detailed v0.1.0 release notes.
+  - `docs/ARCHITECTURE.md`: Subsystem topology, data flow, trust boundaries, state machine.
+  - `docs/CONTRACT.md`: Canonical reference for `qualification.compact`, 5 circuits, ledger declarations, 12-field criteria hash, and 272 ZKIR instructions.
+  - `docs/PRIVACY.md`: Formal privacy invariants, selective disclosure, coarse tiering, and honest limits.
+  - `docs/DEPLOYMENT.md`: Operations guide for Local Docker Devnet and Midnight Preprod Testnet.
+  - `docs/DEMO.md`: Scripted 2-minute evaluator walkthrough, persona cards, and reset workflows.
+  - `walkthrough.md`: Updated to match the current 34 routes and measured 272 ZKIR instructions.
+- **UI Copy Accuracy**:
+  - Replaced legacy `38,420 Halo2 constraints` in `about`, `how-it-works`, and `verify` pages with measured `272 Compact ZKIR instructions`.
+
+---
+
+## Phase 7: Demo Polish & Release (Completed)
+
+- **One-Command Evaluator Setup**:
+  - Added `"demo:fresh"` script to `package.json` (`prisma migrate deploy && node scripts/seed.js && next dev`).
+- **Release Tagged**:
+  - Tagged `v0.1.0` on `master-plan`: *Release v0.1.0: ZkRent privacy-first rental platform on Midnight Network*.
+- **Quality Gates Fully Verified**:
+  - `npm test`: 12/12 suites passing (144/144 tests).
+  - `npm run typecheck`: 0 errors.
+  - `npm run lint`: 0 errors.
+  - `npm run build`: Turbopack compiled 34/34 routes in 9.0s.
+  - Database bootstrap: Empty DB $\to$ Migrate $\to$ Seed $\to$ Boot verified.
+
+
 
 
 
