@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "demo:fresh": "prisma migrate deploy && node scripts/seed.js && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
