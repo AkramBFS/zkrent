@@ -36,13 +36,13 @@ flowchart TB
     end
 
     OCR --> Parser --> Witness --> Prover
-    Prover -->|Prove Request (Zero Raw Data)| ProofServer
-    ProofServer -->|Proof Object & Commitment| Prover
-    Connector -->|Sign & Submit TX| NodeRPC
+    Prover -->|"Prove Request - Zero Raw Data"| ProofServer
+    ProofServer -->|"Proof Object & Commitment"| Prover
+    Connector -->|"Sign & Submit TX"| NodeRPC
     NodeRPC --> Contract
     NodeRPC --> Indexer
 
-    Prover -->|Cryptographic Receipt (No Raw Data)| API
+    Prover -->|"Cryptographic Receipt - Zero Raw Data"| API
     API --> RateLimiter --> StateMachine --> Prisma
     API --> Storage
     API -->|Query Ledger State| Indexer

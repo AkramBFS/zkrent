@@ -7,7 +7,6 @@ ZkRent is a privacy-first rental application and qualification platform powered 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![Build Status](https://img.shields.io/badge/Next.js-16.3.3-black)](https://nextjs.org/)
 [![Compact Version](https://img.shields.io/badge/Compact-v0.5.3-blue)](https://midnight.network)
-[![Tests Passing](https://img.shields.io/badge/Tests-144%20passed-brightgreen)](./scripts/run-tests.js)
 
 ---
 
@@ -81,31 +80,31 @@ Open **[http://localhost:3000](http://localhost:3000)** to experience the platfo
 
 ```mermaid
 flowchart TB
-    subgraph Client ["Tenant Browser (Edge Device)"]
-        OCR["On-Device OCR (Tesseract.js WASM)"]
-        Witness["Private Witnesses (witnesses.ts)"]
-        Prover["Client-Side Prover Engine (zk.ts)"]
+    subgraph Client ["Tenant Browser - Edge Device"]
+        OCR["On-Device OCR - Tesseract.js WASM"]
+        Witness["Private Witnesses - witnesses.ts"]
+        Prover["Client-Side Prover Engine - zk.ts"]
         Connector["Lace DApp Connector / Demo Keypair"]
     end
 
     subgraph Server ["Next.js Fullstack Server"]
         API["API Boundaries & Rate Limiting"]
-        Lifecycle["Canonical State Machine (lifecycle.ts)"]
+        Lifecycle["Canonical State Machine - lifecycle.ts"]
         Storage["Sharp Image Sanitizer & S3/Local Storage"]
         DB[(PostgreSQL / Prisma 7)]
     end
 
     subgraph Midnight ["Midnight Network"]
-        ProofServer["Midnight Proof Server (k=10 ZK Compiler)"]
-        NodeRPC["Midnight Node RPC (Substrate)"]
+        ProofServer["Midnight Proof Server - k=10 ZK Compiler"]
+        NodeRPC["Midnight Node RPC - Substrate"]
         Indexer["Midnight GraphQL Indexer"]
-        Contract["Compact Smart Contract (qualification.compact)"]
+        Contract["Compact Smart Contract - qualification.compact"]
     end
 
     OCR --> Witness --> Prover
-    Prover -->|Proof Envelope Only (No Raw Data)| API
-    Prover -.->|Live Proving| ProofServer
-    Connector -.->|Submit TX| NodeRPC
+    Prover -->|"Proof Envelope Only - Zero Raw Data"| API
+    Prover -.->|"Live Proving"| ProofServer
+    Connector -.->|"Submit TX"| NodeRPC
     NodeRPC --> Contract
     NodeRPC --> Indexer
 
