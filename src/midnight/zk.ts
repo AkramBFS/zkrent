@@ -123,9 +123,9 @@ export async function checkDevnetHealth(config: Partial<MidnightProverConfig> = 
 /* -------------------------------------------------------------------------- */
 
 const CRIT_PAD = new Uint8Array(32);
-Buffer.from('zkrent:crit:').copy(CRIT_PAD);
+CRIT_PAD.set(new TextEncoder().encode('zkrent:crit:'));
 const NULL_PAD = new Uint8Array(32);
-Buffer.from('zkrent:null:').copy(NULL_PAD);
+NULL_PAD.set(new TextEncoder().encode('zkrent:null:'));
 
 export function computeListingCriteriaHash(
   listingIdInput: string | Uint8Array,
