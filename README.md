@@ -8,6 +8,10 @@ ZkRent is a privacy-first rental application and qualification platform powered 
 [![Build Status](https://img.shields.io/badge/Next.js-16.3.3-black)](https://nextjs.org/)
 [![Compact Version](https://img.shields.io/badge/Compact-v0.5.3-blue)](https://midnight.network)
 
+
+## LINK TO PREVIEW VIDEO
+
+https://vimeo.com/1222486300?fl=ip&fe=ec
 ---
 
 ## 🎯 Executive Overview & The Problem
