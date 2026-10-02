@@ -53,6 +53,8 @@ contracts/**/*.json
 
 #Agents
 .agents
+.claude
+.windsurf
 midnight-skills
 
 # Local database & storage
