@@ -15,29 +15,46 @@ async function seed() {
 
   // Hash passwords
   const passwordHash = await bcrypt.hash('Password123!', 12);
+  const demoPasswordHash = await bcrypt.hash('demo123', 10);
 
-  // 1. Create Landlord
+  // 0. Clean dependent records in cascading order to avoid foreign key errors on re-seeding
+  await client.query(`DELETE FROM "notifications"`);
+  await client.query(`DELETE FROM "verifications"`);
+  await client.query(`DELETE FROM "payments"`);
+  await client.query(`DELETE FROM "applications"`);
+  await client.query(`DELETE FROM "properties"`);
+
+  // 1. Create Landlords
   const landlordRes = await client.query(
     `INSERT INTO "users" ("email", "displayName", "passwordHash", "role")
      VALUES ($1, $2, $3, $4)
-     ON CONFLICT ("email") DO UPDATE SET "passwordHash" = $3
+     ON CONFLICT ("email") DO UPDATE SET "passwordHash" = $3, "role" = $4
      RETURNING "id"`,
-    ['landlord@example.com', 'Highline Property Management', passwordHash, 'LANDLORD']
+    ['landlord@zkrent.dev', 'Marcus Vance (Prime Properties)', demoPasswordHash, 'LANDLORD']
   );
   const landlordId = landlordRes.rows[0].id;
 
-  // 2. Create Tenant
-  const tenantRes = await client.query(
+  await client.query(
     `INSERT INTO "users" ("email", "displayName", "passwordHash", "role")
      VALUES ($1, $2, $3, $4)
-     ON CONFLICT ("email") DO UPDATE SET "passwordHash" = $3
-     RETURNING "id"`,
+     ON CONFLICT ("email") DO UPDATE SET "passwordHash" = $3, "role" = $4`,
+    ['landlord@example.com', 'Highline Property Management', passwordHash, 'LANDLORD']
+  );
+
+  // 2. Create Tenants (Ensuring at least one TENANT role user exists)
+  await client.query(
+    `INSERT INTO "users" ("email", "displayName", "passwordHash", "role")
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT ("email") DO UPDATE SET "passwordHash" = $3, "role" = $4`,
+    ['tenant@zkrent.dev', 'Alex Rivera', demoPasswordHash, 'TENANT']
+  );
+
+  await client.query(
+    `INSERT INTO "users" ("email", "displayName", "passwordHash", "role")
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT ("email") DO UPDATE SET "passwordHash" = $3, "role" = $4`,
     ['tenant@example.com', 'Elena Rostova', passwordHash, 'TENANT']
   );
-  const tenantId = tenantRes.rows[0].id;
-
-  // 3. Clear existing properties
-  await client.query(`DELETE FROM "properties" WHERE "landlordId" = $1`, [landlordId]);
 
   // 4. Seed 6 properties
   const properties = [
@@ -229,7 +246,9 @@ async function seed() {
     );
   }
 
-  console.log('Seeded users and properties successfully!');
+  console.log('✓ Seeded TENANT users (tenant@zkrent.dev, tenant@example.com)');
+  console.log('✓ Seeded LANDLORD users (landlord@zkrent.dev, landlord@example.com)');
+  console.log(`✓ Seeded ${properties.length} properties with complete ZK qualification rules`);
   await client.end();
 }
 

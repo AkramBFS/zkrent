@@ -11,6 +11,30 @@ jobs:
     name: Lint, Typecheck, Test & Build
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: zkrent
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/zkrent
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/zkrent
+      AUTH_SECRET: ci-dummy-auth-secret-for-testing-only-32bytes
+      NEXTAUTH_SECRET: ci-dummy-auth-secret-for-testing-only-32bytes
+      NEXTAUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_MIDNIGHT_MODE: simulation
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,19 +51,23 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
+      - name: Deploy Database Migrations
+        run: npx prisma migrate deploy
+
+      - name: Seed Database
+        run: node scripts/seed.js
+
+      - name: Run Server Proof Verification & Anti-Forgery Tests
+        run: node node_modules/tsx/dist/cli.mjs scripts/test-proof-verification.ts
+
       - name: Run ESLint
         run: npm run lint
 
       - name: Run Type Check
         run: npm run typecheck
 
-      - name: Run Test Suite
+      - name: Run Full Test Suite
         run: npm test
 
       - name: Build Next.js Application
         run: npm run build
-        env:
-          NEXT_PUBLIC_APP_URL: http://localhost:3000
-          AUTH_SECRET: ci-dummy-auth-secret-for-testing-only-32bytes
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/zkrent
-          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/zkrent

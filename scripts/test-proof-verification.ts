@@ -31,12 +31,57 @@ async function runProofVerificationTests() {
   console.log('  Server Proof Verification & Anti-Forgery Security Tests');
   console.log('══════════════════════════════════════════════════════════════\n');
 
-  // Load a seeded property and tenant
-  const tenant = await prisma.user.findFirst({ where: { role: 'TENANT' } });
-  const property = await prisma.property.findFirst();
+  // Load a seeded property and tenant (with self-healing fallback)
+  let tenant = await prisma.user.findFirst({ where: { role: 'TENANT' } });
+  let property = await prisma.property.findFirst();
 
   if (!tenant || !property) {
-    throw new Error('Database must be seeded before running tests');
+    console.log('  [Notice] Database unseeded; provisioning required TENANT and Property test fixtures...');
+    const landlord = await prisma.user.upsert({
+      where: { email: 'landlord@zkrent.dev' },
+      update: {},
+      create: {
+        email: 'landlord@zkrent.dev',
+        displayName: 'Marcus Vance',
+        role: 'LANDLORD',
+      },
+    });
+
+    tenant = await prisma.user.upsert({
+      where: { email: 'tenant@zkrent.dev' },
+      update: {},
+      create: {
+        email: 'tenant@zkrent.dev',
+        displayName: 'Alex Rivera',
+        role: 'TENANT',
+      },
+    });
+
+    property = await prisma.property.create({
+      data: {
+        title: 'CI Verification Test Suite Residence',
+        address: '100 Verification Plaza, Suite 400',
+        city: 'Austin',
+        state: 'TX',
+        zip: '78701',
+        price: 2500,
+        beds: 2,
+        baths: 2.0,
+        sqft: 1100,
+        type: 'Apartment',
+        description: 'Automated test property for anti-forgery and proof verification',
+        minIncome: 75000,
+        requireBackground: true,
+        requireEmployment: true,
+        verificationFee: 5.0,
+        maxRentToIncomeRatioBps: 3300,
+        minCreditScore: 650,
+        minEmploymentMonths: 12,
+        primeMaxRentToIncomeRatioBps: 2500,
+        primeMinCreditScore: 750,
+        landlordId: landlord.id,
+      },
+    });
   }
 
   const expectedCriteriaHash = computeListingCriteriaHash(property.id, {

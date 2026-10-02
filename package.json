@@ -13,6 +13,7 @@
     "test": "node scripts/run-tests.js",
     "test:ocr": "node node_modules/tsx/dist/cli.mjs scripts/test-ocr-parser.ts",
     "test:prover": "node node_modules/tsx/dist/cli.mjs scripts/test-midnight-prover.ts",
+    "test:proof": "node scripts/seed.js && node node_modules/tsx/dist/cli.mjs scripts/test-proof-verification.ts",
     "db:start": "powershell -Command \"& 'C:\\Program Files\\PostgreSQL\\18\\bin\\pg_ctl.exe' -D .pgdata start\"",
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node scripts/seed.js",
